@@ -21,13 +21,30 @@ import java.util.Set;
  * Configuration for the strict remote repository filter.
  * Loads per-repository filtering rules from a single properties file: strict.properties
  *
- * <p>Configuration format:
+ * <p>Configuration format supports both groupId-only and full coordinate (groupId:artifactId) patterns:
  * <pre>
  * # Comments start with #
- * repo.shibboleth.allow = org.opensaml,net.shibboleth
- * repo.shibboleth.deny = com.google.*
- * repo.central.allow = org.apache.maven,org.springframework
+ *
+ * # GroupId-only patterns - match all artifacts in the groupId
+ * repo.central.allow = org.graylog,org.apache.maven,org.springframework
+ * repo.central.deny = org.apache.maven.internal*
+ *
+ * # Coordinate patterns - match specific artifacts
+ * repo.shibboleth.allow = org.opensaml:*,net.shibboleth:*
+ * repo.shibboleth.deny = org.opensaml:*-internal
+ *
+ * # Mixed patterns - combine groupId and coordinate patterns
+ * repo.test.allow = org.junit,com.google:guava,com.company:test-*
  * </pre>
+ *
+ * <p>Pattern matching rules:
+ * <ul>
+ * <li>GroupId-only: {@code org.graylog} matches {@code org.graylog:*} and {@code org.graylog.plugin:*}</li>
+ * <li>Wildcard groupId: {@code com.google*} matches {@code com.google:*}, {@code com.googlecode:*}</li>
+ * <li>Coordinate with wildcard: {@code com.opensaml:*} matches all artifacts in {@code com.opensaml}</li>
+ * <li>Coordinate with pattern: {@code com.company:test-*} matches {@code com.company:test-utils}, etc.</li>
+ * <li>Exact coordinate: {@code com.google:guava} matches only {@code com.google:guava}</li>
+ * </ul>
  *
  * <p>By default, everything is denied unless explicitly allowed.
  * Deny rules override allow rules. Supports glob patterns with * wildcard.
@@ -362,8 +379,11 @@ public class StrictFilterConfiguration {
     /**
      * Determines if an artifact is allowed from the specified repository.
      *
-     * <p>Uses allow/deny rules with glob pattern matching.
-     * By default, everything is denied unless explicitly allowed.
+     * <p>Uses allow/deny rules with glob pattern matching on both groupId and artifactId.
+     * Supports both groupId-only patterns (e.g., {@code org.graylog}) and full coordinate
+     * patterns (e.g., {@code com.google:guava}, {@code com.company:test-*}).
+     *
+     * <p>By default, everything is denied unless explicitly allowed.
      * Deny rules override allow rules.
      *
      * @param repositoryId the repository ID
@@ -383,8 +403,9 @@ public class StrictFilterConfiguration {
     /**
      * Determines if metadata is allowed from the specified repository.
      *
-     * <p>Uses allow/deny rules with glob pattern matching.
-     * Metadata without a groupId (repository-level) is always allowed.
+     * <p>Uses allow/deny rules with glob pattern matching on groupId and optionally artifactId.
+     * Supports both groupId-only patterns and full coordinate patterns.
+     * Metadata without a groupId (repository-level metadata) is always allowed.
      *
      * @param repositoryId the repository ID
      * @param metadata     the metadata to check
