@@ -85,19 +85,27 @@ The properties file defines allow and deny rules per repository:
 repo.shibboleth.allow = org.opensaml,net.shibboleth
 repo.shibboleth.deny = org.opensaml.internal*,net.shibboleth.internal*
 
-# Maven Central - only allow rules
+# Maven Central - groupId patterns
 repo.central.allow = org.graylog,org.apache.maven,org.springframework
 
-# Company repository - single groupId
-repo.company.allow = com.company
+# Company repository - coordinate patterns (groupId:artifactId)
+repo.company.allow = com.company:*,com.other:lib-*
+
+# Mixed patterns - both groupId and coordinate patterns
+repo.test.allow = org.junit,com.google:guava,com.google:gson
 
 # Lines starting with # are comments
 # Empty lines are ignored
 ```
 
 **Format Rules**:
-- **Allow rule**: `repo.{repositoryId}.allow = groupId1,groupId2,...`
+- **Allow rule**: `repo.{repositoryId}.allow = pattern1,pattern2,...`
+  - GroupId pattern: `org.graylog` (matches all artifacts in this groupId)
+  - Coordinate pattern: `com.company:*` (matches all artifacts in this groupId)
+  - Coordinate pattern: `com.test:lib-*` (matches artifacts starting with "lib-" in this groupId)
+  - Coordinate pattern: `com.google:guava` (matches only the specific artifact)
 - **Deny rule**: `repo.{repositoryId}.deny = pattern1,pattern2,...`
+  - Same pattern formats as allow rules
 - Whitespace around keys, values, and commas is automatically trimmed
 - Comments start with `#`
 - Empty lines are ignored
@@ -107,22 +115,44 @@ repo.company.allow = com.company
 The filter works in this order:
 
 1. **Default Deny**: If no `.allow` patterns are specified, everything is denied
-2. **Check Allow**: If groupId matches any `.allow` pattern, proceed to step 3; otherwise deny
-3. **Check Deny**: If groupId matches any `.deny` pattern, deny; otherwise allow
+2. **Check Allow**: If artifact matches any `.allow` pattern, proceed to step 3; otherwise deny
+3. **Check Deny**: If artifact matches any `.deny` pattern, deny; otherwise allow
 
 **Pattern Matching**:
 
-Patterns support glob wildcards with `*`:
+Patterns support both groupId-only and full coordinate (groupId:artifactId) patterns:
+
+#### GroupId-Only Patterns
 
 - **Without wildcard** (prefix matching):
-  - `org.graylog` matches: `org.graylog`, `org.graylog.plugin`, `org.graylog.server.anything`
-  - Does NOT match: `org.graylog2` (not a prefix)
+  - `org.graylog` matches: `org.graylog:*`, `org.graylog.plugin:*`, `org.graylog.server.*:*`
+  - Does NOT match: `org.graylog2:*` (not a prefix)
 
 - **With wildcard** (glob matching):
-  - `com.google.*` matches: `com.google.foo`, `com.google.bar.baz`
-  - Does NOT match: `com.google` (requires dot after google)
-  - `com.google*` matches: `com.google`, `com.googlecode`, `com.google.foo`
+  - `com.google.*` matches: `com.google.foo:*`, `com.google.bar.baz:*`
+  - Does NOT match: `com.google:*` (requires dot after google)
+  - `com.google*` matches: `com.google:*`, `com.googlecode:*`, `com.google.foo:*`
   - `*` matches: everything
+
+#### Coordinate Patterns (groupId:artifactId)
+
+- **Wildcard artifactId**:
+  - `com.opensaml:*` matches: any artifact in groupId `com.opensaml`
+  - Example: `com.opensaml:opensaml-core`, `com.opensaml:opensaml-saml`
+
+- **Pattern artifactId**:
+  - `com.foobar:test-*` matches: artifacts starting with "test-" in groupId `com.foobar`
+  - Example: `com.foobar:test-utils`, `com.foobar:test-core`
+  - Does NOT match: `com.foobar:production-lib`
+
+- **Exact artifactId**:
+  - `com.google:guava` matches: only `com.google:guava`
+  - Does NOT match: `com.google:gson` or other artifacts from `com.google`
+
+- **Mixed patterns**:
+  - You can mix groupId-only and coordinate patterns in the same rule:
+  - `repo.test.allow = org.graylog,com.opensaml:*,com.test:lib-*`
+  - This allows: all `org.graylog.*` artifacts, all `com.opensaml` artifacts, and `com.test:lib-*` artifacts
 
 ## Usage Examples
 
@@ -189,7 +219,29 @@ repo.company.allow = com.mycompany*
 repo.company.deny = *-SNAPSHOT
 ```
 
-### Example 5: Custom Config Directory
+### Example 5: Coordinate-Based Filtering
+
+Restrict specific artifacts using full coordinates:
+
+```properties
+# Allow only specific Google artifacts
+repo.central.allow = com.google:guava,com.google:gson
+
+# Allow all OpenSAML artifacts
+repo.shibboleth.allow = com.opensaml:*,net.shibboleth:*
+
+# Allow test utilities only
+repo.test-repo.allow = com.company:test-*,org.junit:*
+
+# Allow all from groupId but deny specific artifacts
+repo.central.allow = org.apache.commons:*
+repo.central.deny = org.apache.commons:commons-io
+
+# Mix groupId and coordinate patterns
+repo.central.allow = org.graylog,com.opensaml:*,com.google:guava
+```
+
+### Example 6: Custom Config Directory
 
 Use a project-specific config directory:
 
@@ -207,7 +259,7 @@ Create `strict.properties` in `.mvn/rrf/` in your project:
     strict.properties
 ```
 
-### Example 6: Disable for Specific Repository
+### Example 7: Disable for Specific Repository
 
 ```bash
 mvn clean install \

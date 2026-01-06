@@ -396,6 +396,177 @@ class StrictFilterConfigurationTest {
     }
 
     @Test
+    void testArtifactCoordinatePatterns(@TempDir Path tempDir) throws Exception {
+        Path configFile = tempDir.resolve("strict.properties");
+        Files.writeString(configFile,
+                "# Allow all artifacts from com.opensaml\n" +
+                        "repo.test.allow = com.opensaml:*\n" +
+                        "# Allow only test-* artifacts from com.foobar\n" +
+                        "repo.test2.allow = com.foobar:test-*\n"
+        );
+
+        StrictFilterConfiguration config = StrictFilterConfiguration.load(
+                tempDir.toString(),
+                tempDir
+        );
+
+        // Test com.opensaml:* - should allow any artifact
+        Artifact artifact1 = new DefaultArtifact("com.opensaml:opensaml-core:4.0.0");
+        assertTrue(config.isArtifactAllowed("test", artifact1),
+                "Should allow com.opensaml:opensaml-core");
+
+        Artifact artifact2 = new DefaultArtifact("com.opensaml:anything:1.0");
+        assertTrue(config.isArtifactAllowed("test", artifact2),
+                "Should allow com.opensaml:anything");
+
+        // Different groupId should be denied
+        Artifact artifact3 = new DefaultArtifact("com.other:something:1.0");
+        assertFalse(config.isArtifactAllowed("test", artifact3),
+                "Should deny com.other:something");
+
+        // Test com.foobar:test-* - should only allow test-* artifacts
+        Artifact artifact4 = new DefaultArtifact("com.foobar:test-utils:1.0");
+        assertTrue(config.isArtifactAllowed("test2", artifact4),
+                "Should allow com.foobar:test-utils");
+
+        Artifact artifact5 = new DefaultArtifact("com.foobar:test-core:1.0");
+        assertTrue(config.isArtifactAllowed("test2", artifact5),
+                "Should allow com.foobar:test-core");
+
+        // Non-test artifact should be denied
+        Artifact artifact6 = new DefaultArtifact("com.foobar:production-lib:1.0");
+        assertFalse(config.isArtifactAllowed("test2", artifact6),
+                "Should deny com.foobar:production-lib");
+    }
+
+    @Test
+    void testMixedGroupIdAndCoordinatePatterns(@TempDir Path tempDir) throws Exception {
+        Path configFile = tempDir.resolve("strict.properties");
+        Files.writeString(configFile,
+                "# Mix groupId-only and coordinate patterns\n" +
+                        "repo.mixed.allow = org.graylog,com.opensaml:*,com.test:lib-*\n"
+        );
+
+        StrictFilterConfiguration config = StrictFilterConfiguration.load(
+                tempDir.toString(),
+                tempDir
+        );
+
+        // Test groupId-only pattern (org.graylog)
+        Artifact artifact1 = new DefaultArtifact("org.graylog:server:1.0");
+        assertTrue(config.isArtifactAllowed("mixed", artifact1),
+                "Should allow org.graylog:server via groupId pattern");
+
+        Artifact artifact2 = new DefaultArtifact("org.graylog.plugin:plugin-api:1.0");
+        assertTrue(config.isArtifactAllowed("mixed", artifact2),
+                "Should allow org.graylog.plugin:plugin-api via groupId pattern");
+
+        // Test coordinate pattern with wildcard (com.opensaml:*)
+        Artifact artifact3 = new DefaultArtifact("com.opensaml:opensaml-core:4.0.0");
+        assertTrue(config.isArtifactAllowed("mixed", artifact3),
+                "Should allow com.opensaml:opensaml-core via coordinate pattern");
+
+        // Test coordinate pattern with prefix (com.test:lib-*)
+        Artifact artifact4 = new DefaultArtifact("com.test:lib-utils:1.0");
+        assertTrue(config.isArtifactAllowed("mixed", artifact4),
+                "Should allow com.test:lib-utils via coordinate pattern");
+
+        Artifact artifact5 = new DefaultArtifact("com.test:other-utils:1.0");
+        assertFalse(config.isArtifactAllowed("mixed", artifact5),
+                "Should deny com.test:other-utils (doesn't match lib-* pattern)");
+
+        // Test non-matching groupId
+        Artifact artifact6 = new DefaultArtifact("com.other:something:1.0");
+        assertFalse(config.isArtifactAllowed("mixed", artifact6),
+                "Should deny com.other:something");
+    }
+
+    @Test
+    void testCoordinateDenyPatterns(@TempDir Path tempDir) throws Exception {
+        Path configFile = tempDir.resolve("strict.properties");
+        Files.writeString(configFile,
+                "# Allow all from com.opensaml, but deny internal artifacts\n" +
+                        "repo.test.allow = com.opensaml:*\n" +
+                        "repo.test.deny = com.opensaml:*-internal\n"
+        );
+
+        StrictFilterConfiguration config = StrictFilterConfiguration.load(
+                tempDir.toString(),
+                tempDir
+        );
+
+        // Allowed artifact
+        Artifact artifact1 = new DefaultArtifact("com.opensaml:opensaml-core:4.0.0");
+        assertTrue(config.isArtifactAllowed("test", artifact1),
+                "Should allow com.opensaml:opensaml-core");
+
+        // Denied by pattern
+        Artifact artifact2 = new DefaultArtifact("com.opensaml:utils-internal:1.0");
+        assertFalse(config.isArtifactAllowed("test", artifact2),
+                "Should deny com.opensaml:utils-internal");
+
+        Artifact artifact3 = new DefaultArtifact("com.opensaml:test-internal:1.0");
+        assertFalse(config.isArtifactAllowed("test", artifact3),
+                "Should deny com.opensaml:test-internal");
+    }
+
+    @Test
+    void testExactArtifactIdMatch(@TempDir Path tempDir) throws Exception {
+        Path configFile = tempDir.resolve("strict.properties");
+        Files.writeString(configFile,
+                "# Allow only specific artifacts\n" +
+                        "repo.test.allow = com.google:guava,com.google:gson\n"
+        );
+
+        StrictFilterConfiguration config = StrictFilterConfiguration.load(
+                tempDir.toString(),
+                tempDir
+        );
+
+        // Exact match - guava
+        Artifact artifact1 = new DefaultArtifact("com.google:guava:30.0");
+        assertTrue(config.isArtifactAllowed("test", artifact1),
+                "Should allow com.google:guava");
+
+        // Exact match - gson
+        Artifact artifact2 = new DefaultArtifact("com.google:gson:2.8.0");
+        assertTrue(config.isArtifactAllowed("test", artifact2),
+                "Should allow com.google:gson");
+
+        // Non-matching artifact from same groupId
+        Artifact artifact3 = new DefaultArtifact("com.google:truth:1.0");
+        assertFalse(config.isArtifactAllowed("test", artifact3),
+                "Should deny com.google:truth");
+    }
+
+    @Test
+    void testCoordinatePatternBackwardCompatibility(@TempDir Path tempDir) throws Exception {
+        Path configFile = tempDir.resolve("strict.properties");
+        Files.writeString(configFile,
+                "# Legacy groupId-only pattern should still work\n" +
+                        "repo.test.allow = org.graylog,org.apache.commons\n"
+        );
+
+        StrictFilterConfiguration config = StrictFilterConfiguration.load(
+                tempDir.toString(),
+                tempDir
+        );
+
+        // Legacy prefix matching should still work
+        Artifact artifact1 = new DefaultArtifact("org.graylog:server:1.0");
+        assertTrue(config.isArtifactAllowed("test", artifact1),
+                "Legacy groupId pattern should still work");
+
+        Artifact artifact2 = new DefaultArtifact("org.graylog.plugin:api:2.0");
+        assertTrue(config.isArtifactAllowed("test", artifact2),
+                "Legacy groupId prefix matching should still work");
+
+        Artifact artifact3 = new DefaultArtifact("org.apache.commons:commons-lang3:3.0");
+        assertTrue(config.isArtifactAllowed("test", artifact3),
+                "Legacy groupId pattern should still work");
+    }
+
+    @Test
     void testRepositoryNamesWithDots(@TempDir Path tempDir) throws Exception {
         Path configFile = tempDir.resolve("strict.properties");
         Files.writeString(configFile,

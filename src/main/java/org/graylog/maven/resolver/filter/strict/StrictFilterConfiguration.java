@@ -60,16 +60,19 @@ public class StrictFilterConfiguration {
             this.denyPatterns = denyPatterns;
         }
 
-        boolean isGroupIdAllowed(String groupId) {
+        boolean isArtifactAllowed(Artifact artifact) {
             // If no allow patterns specified, deny by default
             if (allowPatterns.isEmpty()) {
                 return false;
             }
 
-            // Check if groupId matches any allow pattern
+            String groupId = artifact.getGroupId();
+            String artifactId = artifact.getArtifactId();
+
+            // Check if artifact matches any allow pattern
             boolean allowed = false;
             for (String allowPattern : allowPatterns) {
-                if (matchesPattern(groupId, allowPattern)) {
+                if (matchesPattern(groupId, artifactId, allowPattern)) {
                     allowed = true;
                     break;
                 }
@@ -82,7 +85,41 @@ public class StrictFilterConfiguration {
 
             // Check deny patterns (deny overrides allow)
             for (String denyPattern : denyPatterns) {
-                if (matchesPattern(groupId, denyPattern)) {
+                if (matchesPattern(groupId, artifactId, denyPattern)) {
+                    return false;
+                }
+            }
+
+            // Allowed and not denied
+            return true;
+        }
+
+        boolean isMetadataAllowed(Metadata metadata) {
+            // If no allow patterns specified, deny by default
+            if (allowPatterns.isEmpty()) {
+                return false;
+            }
+
+            String groupId = metadata.getGroupId();
+            String artifactId = metadata.getArtifactId();
+
+            // Check if metadata matches any allow pattern
+            boolean allowed = false;
+            for (String allowPattern : allowPatterns) {
+                if (matchesMetadataPattern(groupId, artifactId, allowPattern)) {
+                    allowed = true;
+                    break;
+                }
+            }
+
+            // If not in allow list, deny
+            if (!allowed) {
+                return false;
+            }
+
+            // Check deny patterns (deny overrides allow)
+            for (String denyPattern : denyPatterns) {
+                if (matchesMetadataPattern(groupId, artifactId, denyPattern)) {
                     return false;
                 }
             }
@@ -92,21 +129,78 @@ public class StrictFilterConfiguration {
         }
 
         /**
-         * Matches a groupId against a glob pattern.
-         * Supports * as wildcard.
+         * Matches metadata against a glob pattern.
+         * Metadata can have groupId only (group-level) or both groupId and artifactId (artifact-level).
+         */
+        private static boolean matchesMetadataPattern(String groupId, String artifactId, String pattern) {
+            if ("*".equals(pattern)) {
+                return true;
+            }
+
+            // Check if pattern includes artifactId (contains ':')
+            if (pattern.contains(":")) {
+                // If pattern has artifactId but metadata doesn't, check only groupId
+                if (artifactId == null || artifactId.isEmpty()) {
+                    String groupIdPattern = pattern.split(":", 2)[0];
+                    return matchesGlobPattern(groupId, groupIdPattern);
+                }
+
+                // Both metadata and pattern have artifactId - match both
+                String[] parts = pattern.split(":", 2);
+                String groupIdPattern = parts[0];
+                String artifactIdPattern = parts.length > 1 ? parts[1] : "*";
+
+                return matchesGlobPattern(groupId, groupIdPattern)
+                    && matchesGlobPattern(artifactId, artifactIdPattern);
+            }
+
+            // Legacy groupId-only pattern
+            return matchesGlobPattern(groupId, pattern);
+        }
+
+        /**
+         * Matches an artifact against a glob pattern.
+         * Supports * as wildcard and groupId:artifactId coordinate patterns.
+         *
          * Examples:
-         * - "com.google.*" matches "com.google.foo" but not "com.google"
-         * - "com.google*" matches "com.google", "com.googlefoo", "com.google.foo"
+         * - "com.google" matches groupId "com.google" or "com.google.foo"
+         * - "com.google*" matches groupId "com.google", "com.googlefoo", "com.google.foo"
+         * - "com.google.*" matches groupId "com.google.foo" but not "com.google"
+         * - "com.opensaml:*" matches any artifact in groupId "com.opensaml"
+         * - "com.foobar:test-*" matches artifacts starting with "test-" in groupId "com.foobar"
          * - "*" matches everything
          */
-        private static boolean matchesPattern(String groupId, String pattern) {
+        private static boolean matchesPattern(String groupId, String artifactId, String pattern) {
+            if ("*".equals(pattern)) {
+                return true;
+            }
+
+            // Check if pattern includes artifactId (contains ':')
+            if (pattern.contains(":")) {
+                String[] parts = pattern.split(":", 2);
+                String groupIdPattern = parts[0];
+                String artifactIdPattern = parts.length > 1 ? parts[1] : "*";
+
+                // Both groupId and artifactId must match
+                return matchesGlobPattern(groupId, groupIdPattern)
+                    && matchesGlobPattern(artifactId, artifactIdPattern);
+            }
+
+            // Legacy groupId-only pattern
+            return matchesGlobPattern(groupId, pattern);
+        }
+
+        /**
+         * Matches a string against a glob pattern with * wildcard.
+         */
+        private static boolean matchesGlobPattern(String value, String pattern) {
             if ("*".equals(pattern)) {
                 return true;
             }
 
             if (!pattern.contains("*")) {
-                // No wildcard - exact match or prefix match (legacy behavior)
-                return groupId.equals(pattern) || groupId.startsWith(pattern + ".");
+                // No wildcard - exact match or prefix match (for groupId legacy behavior)
+                return value.equals(pattern) || value.startsWith(pattern + ".");
             }
 
             // Convert glob pattern to regex
@@ -114,7 +208,7 @@ public class StrictFilterConfiguration {
                     .replace(".", "\\.")  // Escape dots
                     .replace("*", ".*");  // Convert * to .*
 
-            return groupId.matches(regex);
+            return value.matches(regex);
         }
     }
 
@@ -283,8 +377,7 @@ public class StrictFilterConfiguration {
             return true;
         }
 
-        String groupId = artifact.getGroupId();
-        return rule.isGroupIdAllowed(groupId);
+        return rule.isArtifactAllowed(artifact);
     }
 
     /**
@@ -309,6 +402,6 @@ public class StrictFilterConfiguration {
             return true;
         }
 
-        return rule.isGroupIdAllowed(groupId);
+        return rule.isMetadataAllowed(metadata);
     }
 }
