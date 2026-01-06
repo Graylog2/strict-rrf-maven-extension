@@ -12,10 +12,13 @@ A skeleton Maven extension that implements the Maven Resolver Remote Repository 
 
 ## How It Works
 
-The filter uses configuration files to determine which artifacts should be fetched from specific repositories. By default, it implements groupId-based filtering with prefix matching:
+The filter uses a single `strict.properties` configuration file to define allow and deny rules for multiple repositories:
 
-- If a configuration file exists for a repository, only artifacts matching the configured groupIds are allowed
-- If no configuration exists, all artifacts are allowed (fail-safe behavior)
+- **Default Deny**: Everything is denied by default unless explicitly allowed
+- **Allow Rules**: Define which groupIds are permitted from a repository
+- **Deny Rules**: Override allow rules to block specific patterns
+- **Glob Patterns**: Support wildcards (`*`) for flexible matching
+- **Fail-safe**: If no configuration exists for a repository, all artifacts are allowed
 - The filter must be explicitly enabled via system properties
 
 ## Installation
@@ -67,52 +70,69 @@ Or configure in `.mvn/maven.config`:
 | `aether.remoteRepositoryFilter.strict.basedir` | string | `.remoteRepositoryFilters/strict` | Base directory for config files (relative to local repo) |
 | `aether.remoteRepositoryFilter.strict.{repoId}` | boolean | true | Enable/disable for specific repository |
 
-### Configuration Files
+### Configuration File
 
-Configuration files should be placed in the filter basedir and named: `strict-{repositoryId}.txt`
+A single configuration file named `strict.properties` should be placed in the filter basedir.
 
-**Default location**: `~/.m2/repository/.remoteRepositoryFilters/strict/`
-
-**Example**: `strict-central.txt` (for Maven Central)
+**Default location**: `~/.m2/repository/.remoteRepositoryFilters/strict/strict.properties`
 
 ### File Format
 
-Each configuration file contains one groupId per line:
+The properties file defines allow and deny rules per repository:
 
 ```properties
-# Allow only these groupIds from this repository
-org.graylog
-org.graylog2
-org.apache.commons
-org.springframework
+# Shibboleth repository - allow and deny rules
+repo.shibboleth.allow = org.opensaml,net.shibboleth
+repo.shibboleth.deny = org.opensaml.internal*,net.shibboleth.internal*
+
+# Maven Central - only allow rules
+repo.central.allow = org.graylog,org.apache.maven,org.springframework
+
+# Company repository - single groupId
+repo.company.allow = com.company
 
 # Lines starting with # are comments
 # Empty lines are ignored
 ```
 
+**Format Rules**:
+- **Allow rule**: `repo.{repositoryId}.allow = groupId1,groupId2,...`
+- **Deny rule**: `repo.{repositoryId}.deny = pattern1,pattern2,...`
+- Whitespace around keys, values, and commas is automatically trimmed
+- Comments start with `#`
+- Empty lines are ignored
+
 ### Filtering Logic
 
-The default implementation uses **prefix matching**:
+The filter works in this order:
 
-- `org.graylog` matches:
-  - `org.graylog` (exact)
-  - `org.graylog.plugin` (prefix)
-  - `org.graylog.server.something` (prefix)
+1. **Default Deny**: If no `.allow` patterns are specified, everything is denied
+2. **Check Allow**: If groupId matches any `.allow` pattern, proceed to step 3; otherwise deny
+3. **Check Deny**: If groupId matches any `.deny` pattern, deny; otherwise allow
 
-- `org.graylog` does NOT match:
-  - `org.graylog2` (not a prefix match)
-  - `com.example` (different groupId)
+**Pattern Matching**:
+
+Patterns support glob wildcards with `*`:
+
+- **Without wildcard** (prefix matching):
+  - `org.graylog` matches: `org.graylog`, `org.graylog.plugin`, `org.graylog.server.anything`
+  - Does NOT match: `org.graylog2` (not a prefix)
+
+- **With wildcard** (glob matching):
+  - `com.google.*` matches: `com.google.foo`, `com.google.bar.baz`
+  - Does NOT match: `com.google` (requires dot after google)
+  - `com.google*` matches: `com.google`, `com.googlecode`, `com.google.foo`
+  - `*` matches: everything
 
 ## Usage Examples
 
 ### Example 1: Restrict Maven Central
 
-Create `~/.m2/repository/.remoteRepositoryFilters/strict/strict-central.txt`:
+Create `~/.m2/repository/.remoteRepositoryFilters/strict/strict.properties`:
 
-```
-org.graylog
-org.apache.maven
-org.apache.commons
+```properties
+# Only allow these groupIds from Maven Central
+repo.central.allow = org.graylog,org.apache.maven,org.apache.commons
 ```
 
 Run Maven with filter enabled:
@@ -121,9 +141,55 @@ Run Maven with filter enabled:
 mvn clean compile -Daether.remoteRepositoryFilter.strict.enabled=true
 ```
 
-Only artifacts from the allowed groupIds will be fetched from Maven Central.
+Only artifacts from the allowed groupIds will be fetched from Maven Central. Everything else is denied by default.
 
-### Example 2: Custom Config Directory
+### Example 2: Allow with Deny Overrides
+
+Allow broad groupIds but deny specific sub-packages:
+
+```properties
+# Shibboleth repository - allow main packages
+repo.shibboleth.allow = org.opensaml,net.shibboleth
+
+# But deny internal packages
+repo.shibboleth.deny = org.opensaml.internal*,net.shibboleth.internal*
+```
+
+This allows `org.opensaml:opensaml-core` but denies `org.opensaml.internal:something`.
+
+### Example 3: Multiple Repositories
+
+Configure multiple repositories in a single file:
+
+```properties
+# Shibboleth repository
+repo.shibboleth.allow = org.opensaml,net.shibboleth
+repo.shibboleth.deny = *.internal*
+
+# Maven Central
+repo.central.allow = org.graylog,org.apache.maven
+
+# Company internal repository
+repo.company-nexus.allow = com.company,com.company.internal
+```
+
+### Example 4: Glob Pattern Wildcards
+
+Use wildcards for flexible matching:
+
+```properties
+# Allow all Google libraries
+repo.central.allow = com.google*
+
+# But deny test utilities
+repo.central.deny = com.google.*.test*
+
+# Allow anything from company, deny snapshots
+repo.company.allow = com.mycompany*
+repo.company.deny = *-SNAPSHOT
+```
+
+### Example 5: Custom Config Directory
 
 Use a project-specific config directory:
 
@@ -133,16 +199,15 @@ mvn clean install \
   -Daether.remoteRepositoryFilter.strict.basedir=${session.rootDirectory}/.mvn/rrf
 ```
 
-Create config files in `.mvn/rrf/` in your project:
+Create `strict.properties` in `.mvn/rrf/` in your project:
 
 ```
 .mvn/
   rrf/
-    strict-central.txt
-    strict-company-repo.txt
+    strict.properties
 ```
 
-### Example 3: Disable for Specific Repository
+### Example 6: Disable for Specific Repository
 
 ```bash
 mvn clean install \

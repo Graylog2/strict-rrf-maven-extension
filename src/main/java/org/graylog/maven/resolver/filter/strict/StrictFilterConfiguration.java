@@ -5,8 +5,8 @@ import org.eclipse.aether.metadata.Metadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -14,84 +14,224 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
 /**
  * Configuration for the strict remote repository filter.
- * Loads per-repository filtering rules from text files in the format: strict-{repositoryId}.txt
+ * Loads per-repository filtering rules from a single properties file: strict.properties
  *
- * <p>Configuration files contain one groupId per line. Lines starting with '#' are treated as comments.
- * Empty lines are ignored.
+ * <p>Configuration format:
+ * <pre>
+ * # Comments start with #
+ * repo.shibboleth.allow = org.opensaml,net.shibboleth
+ * repo.shibboleth.deny = com.google.*
+ * repo.central.allow = org.apache.maven,org.springframework
+ * </pre>
+ *
+ * <p>By default, everything is denied unless explicitly allowed.
+ * Deny rules override allow rules. Supports glob patterns with * wildcard.
  */
 public class StrictFilterConfiguration {
 
     private static final Logger logger = LoggerFactory.getLogger(StrictFilterConfiguration.class);
+    private static final String CONFIG_FILE_NAME = "strict.properties";
+    private static final String REPO_PREFIX = "repo.";
+    private static final String ALLOW_SUFFIX = ".allow";
+    private static final String DENY_SUFFIX = ".deny";
 
     private final Path basedir;
-    private final Map<String, Set<String>> allowedGroupIds; // repositoryId -> Set<groupId>
+    private final Map<String, RepositoryRule> repositoryRules; // repositoryId -> RepositoryRule
 
-    private StrictFilterConfiguration(Path basedir, Map<String, Set<String>> allowedGroupIds) {
+    private StrictFilterConfiguration(Path basedir, Map<String, RepositoryRule> repositoryRules) {
         this.basedir = basedir;
-        this.allowedGroupIds = allowedGroupIds;
+        this.repositoryRules = repositoryRules;
+    }
+
+    /**
+     * Repository filtering rule with allow and deny patterns.
+     */
+    private static class RepositoryRule {
+        private final Set<String> allowPatterns;
+        private final Set<String> denyPatterns;
+
+        RepositoryRule(Set<String> allowPatterns, Set<String> denyPatterns) {
+            this.allowPatterns = allowPatterns;
+            this.denyPatterns = denyPatterns;
+        }
+
+        boolean isGroupIdAllowed(String groupId) {
+            // If no allow patterns specified, deny by default
+            if (allowPatterns.isEmpty()) {
+                return false;
+            }
+
+            // Check if groupId matches any allow pattern
+            boolean allowed = false;
+            for (String allowPattern : allowPatterns) {
+                if (matchesPattern(groupId, allowPattern)) {
+                    allowed = true;
+                    break;
+                }
+            }
+
+            // If not in allow list, deny
+            if (!allowed) {
+                return false;
+            }
+
+            // Check deny patterns (deny overrides allow)
+            for (String denyPattern : denyPatterns) {
+                if (matchesPattern(groupId, denyPattern)) {
+                    return false;
+                }
+            }
+
+            // Allowed and not denied
+            return true;
+        }
+
+        /**
+         * Matches a groupId against a glob pattern.
+         * Supports * as wildcard.
+         * Examples:
+         * - "com.google.*" matches "com.google.foo" but not "com.google"
+         * - "com.google*" matches "com.google", "com.googlefoo", "com.google.foo"
+         * - "*" matches everything
+         */
+        private static boolean matchesPattern(String groupId, String pattern) {
+            if ("*".equals(pattern)) {
+                return true;
+            }
+
+            if (!pattern.contains("*")) {
+                // No wildcard - exact match or prefix match (legacy behavior)
+                return groupId.equals(pattern) || groupId.startsWith(pattern + ".");
+            }
+
+            // Convert glob pattern to regex
+            String regex = pattern
+                    .replace(".", "\\.")  // Escape dots
+                    .replace("*", ".*");  // Convert * to .*
+
+            return groupId.matches(regex);
+        }
     }
 
     /**
      * Loads configuration from the specified base directory.
      *
-     * @param basedirConfig the base directory configuration (can be relative or absolute)
+     * @param basedirConfig    the base directory configuration (can be relative or absolute)
      * @param localRepoBasedir the local repository base directory for resolving relative paths
      * @return a configuration instance
      */
     public static StrictFilterConfiguration load(String basedirConfig, Path localRepoBasedir) {
         Path basedir = resolveBasedir(basedirConfig, localRepoBasedir);
+        Path configFile = basedir.resolve(CONFIG_FILE_NAME);
 
-        if (!Files.exists(basedir) || !Files.isDirectory(basedir)) {
-            logger.debug("Configuration directory does not exist: {}", basedir);
+        if (!Files.exists(configFile) || !Files.isRegularFile(configFile)) {
+            logger.debug("Configuration file does not exist: {}", configFile);
             return empty(basedir);
         }
 
-        Map<String, Set<String>> allowedGroupIds = new HashMap<>();
+        Map<String, RepositoryRule> repositoryRules = new HashMap<>();
+        loadPropertiesFile(configFile, repositoryRules);
 
-        try {
-            // Load configuration files: strict-{repositoryId}.txt
-            Files.list(basedir)
-                    .filter(Files::isRegularFile)
-                    .filter(p -> p.getFileName().toString().startsWith("strict-"))
-                    .filter(p -> p.getFileName().toString().endsWith(".txt"))
-                    .forEach(file -> loadRepositoryConfig(file, allowedGroupIds));
-        } catch (IOException e) {
-            logger.warn("Failed to read configuration from: {}", basedir, e);
-        }
-
-        return new StrictFilterConfiguration(basedir, allowedGroupIds);
+        return new StrictFilterConfiguration(basedir, repositoryRules);
     }
 
-    private static void loadRepositoryConfig(Path file, Map<String, Set<String>> allowedGroupIds) {
-        String fileName = file.getFileName().toString();
-        // Extract repository ID: strict-{repoId}.txt
-        String repoId = fileName.substring("strict-".length(), fileName.length() - ".txt".length());
+    private static void loadPropertiesFile(Path file, Map<String, RepositoryRule> repositoryRules) {
+        logger.debug("Loading configuration from: {}", file);
 
-        logger.debug("Loading configuration for repository: {} from file: {}", repoId, file);
-
-        Set<String> groupIds = new HashSet<>();
-        try (BufferedReader reader = Files.newBufferedReader(file)) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                line = line.trim();
-                // Skip empty lines and comments
-                if (line.isEmpty() || line.startsWith("#")) {
-                    continue;
-                }
-                groupIds.add(line);
-            }
+        Properties properties = new Properties();
+        try (InputStream input = Files.newInputStream(file)) {
+            properties.load(input);
         } catch (IOException e) {
             logger.warn("Failed to read configuration file: {}", file, e);
+            return;
         }
 
-        if (!groupIds.isEmpty()) {
-            allowedGroupIds.put(repoId, groupIds);
-            logger.info("Loaded {} allowed groupIds for repository: {}", groupIds.size(), repoId);
+        // First pass: collect all repository IDs
+        Map<String, Set<String>> allowPatterns = new HashMap<>();
+        Map<String, Set<String>> denyPatterns = new HashMap<>();
+
+        for (String key : properties.stringPropertyNames()) {
+            // Check if key starts with "repo."
+            if (!key.startsWith(REPO_PREFIX)) {
+                logger.warn("Skipping invalid property '{}' in {}: key must start with 'repo.'", key, file);
+                continue;
+            }
+
+            String remainder = key.substring(REPO_PREFIX.length());
+
+            // Extract repository ID and rule type (.allow or .deny)
+            String repoId;
+            boolean isAllow;
+
+            if (remainder.endsWith(ALLOW_SUFFIX)) {
+                repoId = remainder.substring(0, remainder.length() - ALLOW_SUFFIX.length());
+                isAllow = true;
+            } else if (remainder.endsWith(DENY_SUFFIX)) {
+                repoId = remainder.substring(0, remainder.length() - DENY_SUFFIX.length());
+                isAllow = false;
+            } else {
+                logger.warn("Skipping invalid property '{}' in {}: must end with '.allow' or '.deny'", key, file);
+                continue;
+            }
+
+            if (repoId.isEmpty()) {
+                logger.warn("Skipping invalid property '{}' in {}: empty repository ID", key, file);
+                continue;
+            }
+
+            String value = properties.getProperty(key);
+            if (value == null || value.trim().isEmpty()) {
+                logger.debug("Empty value for property '{}', skipping", key);
+                continue;
+            }
+
+            // Parse comma-separated patterns
+            Set<String> patterns = parsePatterns(value);
+
+            if (!patterns.isEmpty()) {
+                if (isAllow) {
+                    allowPatterns.computeIfAbsent(repoId, k -> new HashSet<>()).addAll(patterns);
+                    logger.info("Loaded {} allow patterns for repository '{}': {}", patterns.size(), repoId, patterns);
+                } else {
+                    denyPatterns.computeIfAbsent(repoId, k -> new HashSet<>()).addAll(patterns);
+                    logger.info("Loaded {} deny patterns for repository '{}': {}", patterns.size(), repoId, patterns);
+                }
+            }
         }
+
+        // Create RepositoryRule for each repository
+        Set<String> allRepoIds = new HashSet<>();
+        allRepoIds.addAll(allowPatterns.keySet());
+        allRepoIds.addAll(denyPatterns.keySet());
+
+        for (String repoId : allRepoIds) {
+            Set<String> allow = allowPatterns.getOrDefault(repoId, Collections.emptySet());
+            Set<String> deny = denyPatterns.getOrDefault(repoId, Collections.emptySet());
+
+            repositoryRules.put(repoId, new RepositoryRule(allow, deny));
+            logger.info("Created rule for repository '{}': {} allow patterns, {} deny patterns",
+                    repoId, allow.size(), deny.size());
+        }
+
+        if (repositoryRules.isEmpty()) {
+            logger.debug("No repository rules loaded from: {}", file);
+        }
+    }
+
+    private static Set<String> parsePatterns(String value) {
+        Set<String> patterns = new HashSet<>();
+        for (String pattern : value.split(",")) {
+            pattern = pattern.trim();
+            if (!pattern.isEmpty()) {
+                patterns.add(pattern);
+            }
+        }
+        return patterns;
     }
 
     private static Path resolveBasedir(String basedirConfig, Path localRepoBasedir) {
@@ -113,7 +253,7 @@ public class StrictFilterConfiguration {
      * @return true if no configuration was loaded
      */
     public boolean isEmpty() {
-        return allowedGroupIds.isEmpty();
+        return repositoryRules.isEmpty();
     }
 
     /**
@@ -128,46 +268,38 @@ public class StrictFilterConfiguration {
     /**
      * Determines if an artifact is allowed from the specified repository.
      *
-     * <p><strong>Customization Point:</strong> Modify this method to implement your filtering logic.
-     * The default implementation checks if the artifact's groupId matches any allowed groupId
-     * using prefix matching (e.g., "org.graylog" matches "org.graylog.plugin").
+     * <p>Uses allow/deny rules with glob pattern matching.
+     * By default, everything is denied unless explicitly allowed.
+     * Deny rules override allow rules.
      *
      * @param repositoryId the repository ID
-     * @param artifact the artifact to check
+     * @param artifact     the artifact to check
      * @return true if the artifact is allowed, false otherwise
      */
     public boolean isArtifactAllowed(String repositoryId, Artifact artifact) {
-        Set<String> allowed = allowedGroupIds.get(repositoryId);
-        if (allowed == null) {
+        RepositoryRule rule = repositoryRules.get(repositoryId);
+        if (rule == null) {
             // No configuration for this repository - accept by default
             return true;
         }
 
         String groupId = artifact.getGroupId();
-        // Check exact match or prefix match (e.g., "org.graylog" matches "org.graylog.*")
-        for (String allowedGroupId : allowed) {
-            if (groupId.equals(allowedGroupId) || groupId.startsWith(allowedGroupId + ".")) {
-                return true;
-            }
-        }
-
-        return false;
+        return rule.isGroupIdAllowed(groupId);
     }
 
     /**
      * Determines if metadata is allowed from the specified repository.
      *
-     * <p><strong>Customization Point:</strong> Modify this method to implement your filtering logic.
-     * The default implementation uses the same logic as artifact filtering but accepts metadata
-     * without a groupId (e.g., repository-level metadata).
+     * <p>Uses allow/deny rules with glob pattern matching.
+     * Metadata without a groupId (repository-level) is always allowed.
      *
      * @param repositoryId the repository ID
-     * @param metadata the metadata to check
+     * @param metadata     the metadata to check
      * @return true if the metadata is allowed, false otherwise
      */
     public boolean isMetadataAllowed(String repositoryId, Metadata metadata) {
-        Set<String> allowed = allowedGroupIds.get(repositoryId);
-        if (allowed == null) {
+        RepositoryRule rule = repositoryRules.get(repositoryId);
+        if (rule == null) {
             return true;
         }
 
@@ -177,12 +309,6 @@ public class StrictFilterConfiguration {
             return true;
         }
 
-        for (String allowedGroupId : allowed) {
-            if (groupId.equals(allowedGroupId) || groupId.startsWith(allowedGroupId + ".")) {
-                return true;
-            }
-        }
-
-        return false;
+        return rule.isGroupIdAllowed(groupId);
     }
 }
