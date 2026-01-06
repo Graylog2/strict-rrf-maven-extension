@@ -17,20 +17,24 @@ import org.slf4j.LoggerFactory;
  * Maven discovers this component via Sisu/JSR-330 dependency injection using the
  * {@code @Named("strict")} annotation.
  *
- * <p>The filter can be controlled via system properties:
+ * <p>The filter is <strong>enabled by default</strong> when the extension is registered in {@code .mvn/extensions.xml}.
+ * It can be controlled via system properties:
  * <ul>
- *   <li>{@code aether.remoteRepositoryFilter.strict.enabled} - Enable/disable the filter (default: false)</li>
+ *   <li>{@code aether.remoteRepositoryFilter.strict.enabled} - Enable/disable the filter (default: true)</li>
  *   <li>{@code aether.remoteRepositoryFilter.strict.basedir} - Base directory for configuration files
  *       (default: {@code ${localRepo}/.remoteRepositoryFilters/strict})</li>
  *   <li>{@code aether.remoteRepositoryFilter.strict.{repositoryId}} - Enable/disable for specific repository</li>
  * </ul>
  *
- * <p>Configuration files should be named {@code strict-{repositoryId}.txt} and placed in the basedir.
- * Each file contains one groupId per line. Lines starting with '#' are comments.
+ * <p>Configuration is loaded from {@code strict.properties} file in the basedir directory.
  *
- * <p><strong>Usage Example:</strong>
+ * <p><strong>Usage Examples:</strong>
  * <pre>
- * mvn clean install -Daether.remoteRepositoryFilter.strict.enabled=true
+ * # Enabled by default when extension is registered
+ * # Configuration in ~/.m2/repository/.remoteRepositoryFilters/strict/strict.properties
+ *
+ * # Explicitly disable the filter
+ * mvn clean install -Daether.remoteRepositoryFilter.strict.enabled=false
  * </pre>
  */
 @Named("strict")
@@ -73,14 +77,16 @@ public class StrictRemoteRepositoryFilterSource implements RemoteRepositoryFilte
 
     /**
      * Checks if the filter is enabled via configuration properties.
+     * The filter is enabled by default when the extension is registered.
+     * Set the property to "false" to explicitly disable it.
      *
      * @param session the repository system session
-     * @return true if enabled, false otherwise
+     * @return true if enabled (default), false if explicitly disabled
      */
     private boolean isEnabled(RepositorySystemSession session) {
         Object value = session.getConfigProperties().get(CONFIG_PROP_ENABLED);
         if (value == null) {
-            return false;
+            return true; // Enabled by default
         }
         return Boolean.parseBoolean(String.valueOf(value));
     }

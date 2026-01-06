@@ -48,25 +48,27 @@ Create `.mvn/extensions.xml` in your project root:
 
 ## Configuration
 
-### Enable the Filter
+### Filter Behavior
 
-The filter must be explicitly enabled via system property:
+The filter is **enabled by default** when the extension is registered in `.mvn/extensions.xml`.
+
+To **disable** the filter:
 
 ```bash
-mvn clean install -Daether.remoteRepositoryFilter.strict.enabled=true
+mvn clean install -Daether.remoteRepositoryFilter.strict.enabled=false
 ```
 
 Or configure in `.mvn/maven.config`:
 
 ```
--Daether.remoteRepositoryFilter.strict.enabled=true
+-Daether.remoteRepositoryFilter.strict.enabled=false
 ```
 
 ### Configuration Properties
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `aether.remoteRepositoryFilter.strict.enabled` | boolean | false | Enable/disable the filter |
+| `aether.remoteRepositoryFilter.strict.enabled` | boolean | **true** | Enable/disable the filter |
 | `aether.remoteRepositoryFilter.strict.basedir` | string | `.remoteRepositoryFilters/strict` | Base directory for config files (relative to local repo) |
 | `aether.remoteRepositoryFilter.strict.{repoId}` | boolean | true | Enable/disable for specific repository |
 
@@ -165,10 +167,10 @@ Create `~/.m2/repository/.remoteRepositoryFilters/strict/strict.properties`:
 repo.central.allow = org.graylog,org.apache.maven,org.apache.commons
 ```
 
-Run Maven with filter enabled:
+Run Maven (filter is enabled by default):
 
 ```bash
-mvn clean compile -Daether.remoteRepositoryFilter.strict.enabled=true
+mvn clean compile
 ```
 
 Only artifacts from the allowed groupIds will be fetched from Maven Central. Everything else is denied by default.
@@ -247,8 +249,12 @@ Use a project-specific config directory:
 
 ```bash
 mvn clean install \
-  -Daether.remoteRepositoryFilter.strict.enabled=true \
   -Daether.remoteRepositoryFilter.strict.basedir=${session.rootDirectory}/.mvn/rrf
+```
+
+Or add to `.mvn/maven.config`:
+```
+-Daether.remoteRepositoryFilter.strict.basedir=${session.rootDirectory}/.mvn/rrf
 ```
 
 Create `strict.properties` in `.mvn/rrf/` in your project:
@@ -263,11 +269,19 @@ Create `strict.properties` in `.mvn/rrf/` in your project:
 
 ```bash
 mvn clean install \
-  -Daether.remoteRepositoryFilter.strict.enabled=true \
   -Daether.remoteRepositoryFilter.strict.central=false
 ```
 
-This enables the filter globally but disables it for Maven Central.
+This disables the filter for Maven Central while keeping it active for other repositories.
+
+### Example 8: Temporarily Disable Filter
+
+```bash
+mvn clean install \
+  -Daether.remoteRepositoryFilter.strict.enabled=false
+```
+
+This disables the filter entirely for this build.
 
 ## Customization
 
@@ -335,7 +349,7 @@ The test suite includes:
 Enable Maven debug output to see filter activity:
 
 ```bash
-mvn clean compile -X -Daether.remoteRepositoryFilter.strict.enabled=true
+mvn clean compile -X
 ```
 
 Look for log messages from `StrictRemoteRepositoryFilterSource` and `StrictRemoteRepositoryFilter`.
@@ -348,7 +362,7 @@ Look for log messages from `StrictRemoteRepositoryFilterSource` and `StrictRemot
 
 ## Important Notes
 
-1. **The filter must be explicitly enabled** - it's disabled by default for safety
+1. **The filter is enabled by default** - when you register the extension in `.mvn/extensions.xml`, it activates automatically
 2. **Fail-safe behavior** - misconfiguration won't break builds
 3. **Not for security** - use `maven-enforcer-plugin` for dependency policies
 4. **Optimization tool** - designed to reduce unnecessary 404 requests and improve privacy
