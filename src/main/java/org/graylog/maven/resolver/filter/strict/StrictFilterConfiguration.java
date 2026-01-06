@@ -386,6 +386,10 @@ public class StrictFilterConfiguration {
      * <p>By default, everything is denied unless explicitly allowed.
      * Deny rules override allow rules.
      *
+     * <p><strong>Fail-secure behavior:</strong> If no configuration exists for a repository,
+     * all artifacts are blocked. This ensures that missing configuration doesn't accidentally
+     * allow unrestricted access.
+     *
      * @param repositoryId the repository ID
      * @param artifact     the artifact to check
      * @return true if the artifact is allowed, false otherwise
@@ -393,8 +397,8 @@ public class StrictFilterConfiguration {
     public boolean isArtifactAllowed(String repositoryId, Artifact artifact) {
         RepositoryRule rule = repositoryRules.get(repositoryId);
         if (rule == null) {
-            // No configuration for this repository - accept by default
-            return true;
+            // No configuration for this repository - deny by default (fail-secure)
+            return false;
         }
 
         return rule.isArtifactAllowed(artifact);
@@ -407,20 +411,24 @@ public class StrictFilterConfiguration {
      * Supports both groupId-only patterns and full coordinate patterns.
      * Metadata without a groupId (repository-level metadata) is always allowed.
      *
+     * <p><strong>Fail-secure behavior:</strong> If no configuration exists for a repository,
+     * all metadata is blocked (except repository-level metadata which has no groupId).
+     *
      * @param repositoryId the repository ID
      * @param metadata     the metadata to check
      * @return true if the metadata is allowed, false otherwise
      */
     public boolean isMetadataAllowed(String repositoryId, Metadata metadata) {
-        RepositoryRule rule = repositoryRules.get(repositoryId);
-        if (rule == null) {
-            return true;
-        }
-
         String groupId = metadata.getGroupId();
         if (groupId == null || groupId.isEmpty()) {
             // Allow metadata without groupId (e.g., repository-level metadata)
             return true;
+        }
+
+        RepositoryRule rule = repositoryRules.get(repositoryId);
+        if (rule == null) {
+            // No configuration for this repository - deny by default (fail-secure)
+            return false;
         }
 
         return rule.isMetadataAllowed(metadata);

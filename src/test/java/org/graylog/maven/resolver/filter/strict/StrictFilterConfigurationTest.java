@@ -105,16 +105,16 @@ class StrictFilterConfigurationTest {
     }
 
     @Test
-    void testArtifactAllowedNoConfig(@TempDir Path tempDir) {
+    void testArtifactBlockedNoConfig(@TempDir Path tempDir) {
         StrictFilterConfiguration config = StrictFilterConfiguration.load(
                 tempDir.toString(),
                 tempDir
         );
 
-        // When no config exists for a repository, all artifacts should be allowed
+        // When no config exists for a repository, all artifacts should be BLOCKED (fail-secure)
         Artifact artifact = new DefaultArtifact("any.group:artifact:1.0");
-        assertTrue(config.isArtifactAllowed("central", artifact),
-                "Artifact should be allowed when no config exists for repository");
+        assertFalse(config.isArtifactAllowed("central", artifact),
+                "Artifact should be blocked when no config exists for repository (fail-secure)");
     }
 
     @Test

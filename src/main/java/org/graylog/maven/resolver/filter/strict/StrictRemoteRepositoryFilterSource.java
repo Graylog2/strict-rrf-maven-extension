@@ -67,11 +67,13 @@ public class StrictRemoteRepositoryFilterSource implements RemoteRepositoryFilte
         StrictFilterConfiguration config = loadConfiguration(session);
 
         if (config.isEmpty()) {
-            logger.debug("No configuration found for strict filter, abstaining from filtering");
-            return null; // Abstain if no config
+            logger.warn("No configuration found for strict filter at: {} - BLOCKING ALL ARTIFACTS (fail-secure mode)",
+                    config.getBasedir());
+            logger.warn("Create strict.properties file with allow rules to permit artifacts");
+        } else {
+            logger.info("Strict filter is active with configuration from: {}", config.getBasedir());
         }
 
-        logger.info("Strict filter is active with configuration from: {}", config.getBasedir());
         return new StrictRemoteRepositoryFilter(config);
     }
 
