@@ -10,6 +10,8 @@ import org.eclipse.aether.spi.connector.filter.RemoteRepositoryFilterSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Path;
+
 /**
  * Strict Remote Repository Filter Source - SPI implementation.
  *
@@ -22,19 +24,30 @@ import org.slf4j.LoggerFactory;
  * <ul>
  *   <li>{@code aether.remoteRepositoryFilter.strict.enabled} - Enable/disable the filter (default: true)</li>
  *   <li>{@code aether.remoteRepositoryFilter.strict.basedir} - Base directory for configuration files
- *       (default: {@code ${localRepo}/.remoteRepositoryFilters/strict})</li>
+ *       (default: {@code .remoteRepositoryFilters} relative to local repository)</li>
  *   <li>{@code aether.remoteRepositoryFilter.strict.{repositoryId}} - Enable/disable for specific repository</li>
  * </ul>
  *
  * <p>Configuration is loaded from {@code strict.properties} file in the basedir directory.
  *
+ * <p><strong>Project-Specific Configuration (Maven 3.9+):</strong><br>
+ * To use project-specific configuration, add to {@code .mvn/maven.config}:
+ * <pre>
+ * -Daether.remoteRepositoryFilter.strict.basedir=${session.rootDirectory}/.mvn/remoteRepositoryFilters
+ * </pre>
+ * Then create {@code .mvn/remoteRepositoryFilters/strict.properties} in your project root.
+ *
+ * <p><strong>Note:</strong> In Maven 3.9.x, {@code ${session.rootDirectory}} is only available for
+ * interpolation in {@code .mvn/maven.config} and command-line arguments, not as a runtime property.
+ * Maven 4.0+ will support it as a full property.
+ *
  * <p><strong>Usage Examples:</strong>
  * <pre>
- * # Enabled by default when extension is registered
- * # Configuration in ~/.m2/repository/.remoteRepositoryFilters/strict/strict.properties
- *
  * # Explicitly disable the filter
  * mvn clean install -Daether.remoteRepositoryFilter.strict.enabled=false
+ *
+ * # Use custom basedir on command line
+ * mvn clean install -Daether.remoteRepositoryFilter.strict.basedir=/path/to/config
  * </pre>
  */
 @Named("strict")
@@ -45,7 +58,7 @@ public class StrictRemoteRepositoryFilterSource implements RemoteRepositoryFilte
 
     private static final String CONFIG_PROP_ENABLED = "aether.remoteRepositoryFilter.strict.enabled";
     private static final String CONFIG_PROP_BASEDIR = "aether.remoteRepositoryFilter.strict.basedir";
-    private static final String DEFAULT_BASEDIR = ".remoteRepositoryFilters/strict";
+    private static final String DEFAULT_BASEDIR = ".remoteRepositoryFilters";
 
     /**
      * Constructor for Sisu/JSR-330 dependency injection.
@@ -101,7 +114,8 @@ public class StrictRemoteRepositoryFilterSource implements RemoteRepositoryFilte
      */
     private StrictFilterConfiguration loadConfiguration(RepositorySystemSession session) {
         String basedir = getBasedir(session);
-        return StrictFilterConfiguration.load(basedir, session.getLocalRepository().getBasedir().toPath());
+        Path localRepoBasedir = session.getLocalRepository().getBasedir().toPath();
+        return StrictFilterConfiguration.load(basedir, localRepoBasedir);
     }
 
     /**
@@ -115,7 +129,7 @@ public class StrictRemoteRepositoryFilterSource implements RemoteRepositoryFilte
         if (value != null) {
             return String.valueOf(value);
         }
-        // Default: ${localRepo}/.remoteRepositoryFilters/strict
+        // Default: .remoteRepositoryFilters (relative to local repository)
         return DEFAULT_BASEDIR;
     }
 }

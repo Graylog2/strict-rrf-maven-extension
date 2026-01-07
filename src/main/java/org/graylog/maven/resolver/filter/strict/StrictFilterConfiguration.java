@@ -350,7 +350,7 @@ public class StrictFilterConfiguration {
         if (path.isAbsolute()) {
             return path;
         }
-        // Relative path: resolve from local repository
+        // Relative path: resolve from local repository base directory
         return localRepoBasedir.resolve(basedirConfig);
     }
 

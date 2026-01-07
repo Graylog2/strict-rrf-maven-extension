@@ -8,7 +8,7 @@ Each test is a complete Maven project in its own directory with:
 - `pom.xml` - Maven project file with dependencies
 - `.mvn/extensions.xml` - Registers the extension
 - `.mvn/maven.config` - Maven configuration (enables/disables filter)
-- `.mvn/rrf/strict.properties` - Filter configuration
+- `.mvn/remoteRepositoryFilters/strict.properties` - Filter configuration
 - `verify.groovy` - Post-build verification script
 - `invoker.properties` (optional) - Test-specific settings
 
@@ -84,7 +84,7 @@ Each `verify.groovy` script:
 2. Add `pom.xml` with test dependencies
 3. Create `.mvn/extensions.xml` (copy from existing test)
 4. Create `.mvn/maven.config` with filter settings
-5. Create `.mvn/rrf/strict.properties` with filter rules
+5. Create `.mvn/remoteRepositoryFilters/strict.properties` with filter rules
 6. Add `verify.groovy` to check test results
 7. (Optional) Add `invoker.properties` for special settings
 

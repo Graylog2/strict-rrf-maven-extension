@@ -69,14 +69,22 @@ Or configure in `.mvn/maven.config`:
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `aether.remoteRepositoryFilter.strict.enabled` | boolean | **true** | Enable/disable the filter |
-| `aether.remoteRepositoryFilter.strict.basedir` | string | `.remoteRepositoryFilters/strict` | Base directory for config files (relative to local repo) |
+| `aether.remoteRepositoryFilter.strict.basedir` | string | `.remoteRepositoryFilters` | Base directory for config files (relative to local repository: `~/.m2/repository/.remoteRepositoryFilters`) |
 | `aether.remoteRepositoryFilter.strict.{repoId}` | boolean | true | Enable/disable for specific repository |
 
 ### Configuration File
 
 A single configuration file named `strict.properties` should be placed in the filter basedir.
 
-**Default location**: `~/.m2/repository/.remoteRepositoryFilters/strict/strict.properties`
+**Default location**: `~/.m2/repository/.remoteRepositoryFilters/strict.properties` (global configuration in local repository)
+
+**Project-specific location (recommended)**: To use project-specific configuration in Maven 3.9+, add this to `.mvn/maven.config`:
+```
+-Daether.remoteRepositoryFilter.strict.basedir=${session.rootDirectory}/.mvn/remoteRepositoryFilters
+```
+Then create `.mvn/remoteRepositoryFilters/strict.properties` in your project root.
+
+**Important Note for Maven 3.9.x**: The `${session.rootDirectory}` variable is only available for interpolation in `.mvn/maven.config` and command-line arguments, not as a runtime property. Maven 4.0+ will support it as a full property.
 
 ### File Format
 
@@ -158,9 +166,9 @@ Patterns support both groupId-only and full coordinate (groupId:artifactId) patt
 
 ## Usage Examples
 
-### Example 1: Restrict Maven Central
+### Example 1: Restrict Maven Central (Global Configuration)
 
-Create `~/.m2/repository/.remoteRepositoryFilters/strict/strict.properties`:
+Create `~/.m2/repository/.remoteRepositoryFilters/strict.properties`:
 
 ```properties
 # Only allow these groupIds from Maven Central
@@ -174,6 +182,13 @@ mvn clean compile
 ```
 
 Only artifacts from the allowed groupIds will be fetched from Maven Central. Everything else is denied by default.
+
+**For project-specific configuration**, add to `.mvn/maven.config`:
+```
+-Daether.remoteRepositoryFilter.strict.basedir=${session.rootDirectory}/.mvn/remoteRepositoryFilters
+```
+
+Then create `.mvn/remoteRepositoryFilters/strict.properties` in your project root with the same content.
 
 ### Example 2: Allow with Deny Overrides
 
@@ -245,23 +260,23 @@ repo.central.allow = org.graylog,com.opensaml:*,com.google:guava
 
 ### Example 6: Custom Config Directory
 
-Use a project-specific config directory:
+Use a custom config directory (different from the default `.mvn/remoteRepositoryFilters`):
 
 ```bash
 mvn clean install \
-  -Daether.remoteRepositoryFilter.strict.basedir=${session.rootDirectory}/.mvn/rrf
+  -Daether.remoteRepositoryFilter.strict.basedir=${session.rootDirectory}/.mvn/custom-config
 ```
 
 Or add to `.mvn/maven.config`:
 ```
--Daether.remoteRepositoryFilter.strict.basedir=${session.rootDirectory}/.mvn/rrf
+-Daether.remoteRepositoryFilter.strict.basedir=${session.rootDirectory}/.mvn/custom-config
 ```
 
-Create `strict.properties` in `.mvn/rrf/` in your project:
+Create `strict.properties` in `.mvn/custom-config/` in your project:
 
 ```
 .mvn/
-  rrf/
+  custom-config/
     strict.properties
 ```
 
