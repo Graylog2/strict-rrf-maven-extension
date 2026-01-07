@@ -23,7 +23,6 @@
     </properties>
 
     <dependencies>
-        <!-- Maven Resolver SPI - provided by Maven 3.9+ -->
         <dependency>
             <groupId>org.apache.maven.resolver</groupId>
             <artifactId>maven-resolver-spi</artifactId>
@@ -31,7 +30,6 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Maven Resolver API - provided by Maven 3.9+ -->
         <dependency>
             <groupId>org.apache.maven.resolver</groupId>
             <artifactId>maven-resolver-api</artifactId>
@@ -39,7 +37,6 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- JSR-330 Dependency Injection - provided by Maven -->
         <dependency>
             <groupId>javax.inject</groupId>
             <artifactId>javax.inject</artifactId>
@@ -47,7 +44,6 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- SLF4J Logging API - provided by Maven -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
@@ -66,7 +62,6 @@
 
     <build>
         <plugins>
-            <!-- Maven Enforcer Plugin - enforce minimum Maven version -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
@@ -89,7 +84,6 @@
                 </executions>
             </plugin>
 
-            <!-- Compiler Plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -114,14 +108,12 @@
                 </executions>
             </plugin>
 
-            <!-- Surefire for unit tests -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.4</version>
             </plugin>
 
-            <!-- Maven Invoker Plugin for integration tests -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-invoker-plugin</artifactId>
