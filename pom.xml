@@ -18,7 +18,8 @@
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
-        <maven.resolver.version>2.0.14</maven.resolver.version>
+        <!-- Maven 3.9.0 uses Resolver 1.9.16, 3.9.11 uses 1.9.24, 3.9.12 uses 1.9.25 -->
+        <maven.resolver.version>1.9.25</maven.resolver.version>
     </properties>
 
     <dependencies>
@@ -75,7 +76,7 @@
                             <rules>
                                 <requireMavenVersion>
                                     <version>[3.9.0,)</version>
-                                    <message>Maven 3.9.0 or later is required (uses Maven Resolver 2.x)</message>
+                                    <message>Maven 3.9.0 or later is required</message>
                                 </requireMavenVersion>
                             </rules>
                         </configuration>
