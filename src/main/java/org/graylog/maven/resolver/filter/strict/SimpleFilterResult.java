@@ -9,6 +9,8 @@ import org.eclipse.aether.spi.connector.filter.RemoteRepositoryFilter;
  */
 public class SimpleFilterResult implements RemoteRepositoryFilter.Result {
 
+    private static final SimpleFilterResult ACCEPTED = new SimpleFilterResult(true, null);
+
     private final boolean accepted;
     private final String reasoning;
 
@@ -19,11 +21,12 @@ public class SimpleFilterResult implements RemoteRepositoryFilter.Result {
 
     /**
      * Creates a result indicating acceptance.
+     * Returns a singleton instance to avoid unnecessary object creation.
      *
      * @return an accepted filter result
      */
     public static SimpleFilterResult accepted() {
-        return new SimpleFilterResult(true, null);
+        return ACCEPTED;
     }
 
     /**

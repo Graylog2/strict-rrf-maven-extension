@@ -1,5 +1,6 @@
 package org.graylog.maven.resolver.filter.strict;
 
+import org.apache.maven.shared.utils.io.SelectorUtils;
 import org.eclipse.aether.artifact.Artifact;
 import org.eclipse.aether.metadata.Metadata;
 import org.slf4j.Logger;
@@ -168,7 +169,7 @@ public class StrictFilterConfiguration {
                 final String artifactIdPattern = parts.length > 1 ? parts[1] : "*";
 
                 return matchesGlobPattern(groupId, groupIdPattern)
-                    && matchesGlobPattern(artifactId, artifactIdPattern);
+                        && matchesGlobPattern(artifactId, artifactIdPattern);
             }
 
             // Legacy groupId-only pattern
@@ -178,7 +179,7 @@ public class StrictFilterConfiguration {
         /**
          * Matches an artifact against a glob pattern.
          * Supports * as wildcard and groupId:artifactId coordinate patterns.
-         *
+         * <p>
          * Examples:
          * - "com.google" matches groupId "com.google" or "com.google.foo"
          * - "com.google*" matches groupId "com.google", "com.googlefoo", "com.google.foo"
@@ -200,7 +201,7 @@ public class StrictFilterConfiguration {
 
                 // Both groupId and artifactId must match
                 return matchesGlobPattern(groupId, groupIdPattern)
-                    && matchesGlobPattern(artifactId, artifactIdPattern);
+                        && matchesGlobPattern(artifactId, artifactIdPattern);
             }
 
             // Legacy groupId-only pattern
@@ -208,24 +209,29 @@ public class StrictFilterConfiguration {
         }
 
         /**
-         * Matches a string against a glob pattern with * wildcard.
+         * Matches a string against a glob pattern using Maven's SelectorUtils.
+         * SelectorUtils provides battle-tested glob matching with * and ? wildcards.
+         * Uses . as the path separator to match Maven groupId/artifactId structure.
+         *
+         * <p>Note: SelectorUtils is deprecated but still the most reliable option for Maven glob matching.
+         * No clear replacement has been provided yet. Alternative (maven-common-artifact-filters) uses
+         * incompatible Maven Artifact API instead of Aether/Resolver API.
          */
+        @SuppressWarnings("deprecation")
         private static boolean matchesGlobPattern(String value, String pattern) {
             if ("*".equals(pattern)) {
                 return true;
             }
 
-            if (!pattern.contains("*")) {
+            if (!pattern.contains("*") && !pattern.contains("?")) {
                 // No wildcard - exact match or prefix match (for groupId legacy behavior)
                 return value.equals(pattern) || value.startsWith(pattern + ".");
             }
 
-            // Convert glob pattern to regex
-            final String regex = pattern
-                    .replace(".", "\\.")  // Escape dots
-                    .replace("*", ".*");  // Convert * to .*
-
-            return value.matches(regex);
+            // Use SelectorUtils for glob pattern matching
+            // SelectorUtils.matchPath treats both / and . as path separators
+            // which is perfect for matching Maven coordinates like "com.google.foo"
+            return SelectorUtils.matchPath(pattern, value, true);
         }
     }
 
