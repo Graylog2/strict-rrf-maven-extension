@@ -22,10 +22,9 @@ import java.nio.file.Path;
  * <p>The filter is <strong>enabled by default</strong> when the extension is registered in {@code .mvn/extensions.xml}.
  * It can be controlled via system properties:
  * <ul>
- *   <li>{@code aether.remoteRepositoryFilter.strict.enabled} - Enable/disable the filter (default: true)</li>
+ *   <li>{@code aether.remoteRepositoryFilter.strict.enabled} - Enable/disable the filter globally (default: true)</li>
  *   <li>{@code aether.remoteRepositoryFilter.strict.basedir} - Base directory for configuration files
  *       (default: {@code .remoteRepositoryFilters} relative to local repository)</li>
- *   <li>{@code aether.remoteRepositoryFilter.strict.{repositoryId}} - Enable/disable for specific repository</li>
  * </ul>
  *
  * <p>Configuration is loaded from {@code strict.properties} file in the basedir directory.

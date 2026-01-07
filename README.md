@@ -1,25 +1,23 @@
 # Strict Remote Repository Filter Maven Extension
 
-A skeleton Maven extension that implements the Maven Resolver Remote Repository Filter SPI. This extension provides properties-based configuration for filtering artifacts and metadata from remote Maven repositories.
+A Maven extension that implements the Maven Resolver Remote Repository Filter SPI. This extension provides properties-based configuration for filtering artifacts and metadata from remote Maven repositories.
 
 ## Features
 
+- **Fail-secure Design**: Blocks all artifacts when no configuration exists
+- **Flexible Pattern Matching**: Support for groupId and coordinate patterns with wildcards
 - **Properties-based Configuration**: Use text files to configure filtering rules per repository
-- **Fail-safe Design**: Abstains from filtering when not enabled or misconfigured
-- **Customizable**: Easy to extend with your own filtering logic
-- **Well-tested**: Comprehensive unit tests included
-- **Maven 3.9+ Compatible**: Uses Maven Resolver 2.x SPI
 
 ## How It Works
 
 The filter uses a single `strict.properties` configuration file to define allow and deny rules for multiple repositories:
 
 - **Default Deny**: Everything is denied by default unless explicitly allowed
-- **Allow Rules**: Define which groupIds are permitted from a repository
+- **Allow Rules**: Define which groupIds and artifacts are permitted from a repository
 - **Deny Rules**: Override allow rules to block specific patterns
 - **Glob Patterns**: Support wildcards (`*`) for flexible matching
-- **Fail-safe**: If no configuration exists for a repository, all artifacts are allowed
-- The filter must be explicitly enabled via system properties
+- **Fail-secure**: If no configuration exists for a repository, all artifacts are blocked
+- **Enabled by Default**: The filter activates automatically when the extension is registered
 
 ## Installation
 
@@ -68,9 +66,8 @@ Or configure in `.mvn/maven.config`:
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `aether.remoteRepositoryFilter.strict.enabled` | boolean | **true** | Enable/disable the filter |
+| `aether.remoteRepositoryFilter.strict.enabled` | boolean | **true** | Enable/disable the filter globally |
 | `aether.remoteRepositoryFilter.strict.basedir` | string | `.remoteRepositoryFilters` | Base directory for config files (relative to local repository: `~/.m2/repository/.remoteRepositoryFilters`) |
-| `aether.remoteRepositoryFilter.strict.{repoId}` | boolean | true | Enable/disable for specific repository |
 
 ### Configuration File
 
@@ -280,16 +277,7 @@ Create `strict.properties` in `.mvn/custom-config/` in your project:
     strict.properties
 ```
 
-### Example 7: Disable for Specific Repository
-
-```bash
-mvn clean install \
-  -Daether.remoteRepositoryFilter.strict.central=false
-```
-
-This disables the filter for Maven Central while keeping it active for other repositories.
-
-### Example 8: Temporarily Disable Filter
+### Example 7: Temporarily Disable Filter
 
 ```bash
 mvn clean install \
@@ -297,40 +285,6 @@ mvn clean install \
 ```
 
 This disables the filter entirely for this build.
-
-## Customization
-
-The skeleton provides two main customization points in `StrictFilterConfiguration.java`:
-
-### 1. Artifact Filtering Logic
-
-Modify `isArtifactAllowed()` to implement custom filtering:
-
-```java
-public boolean isArtifactAllowed(String repositoryId, Artifact artifact) {
-    // Your custom logic here
-    // Examples:
-    // - Exact groupId + artifactId matching
-    // - Version range restrictions
-    // - Regular expression patterns
-    // - Classifier-based filtering
-}
-```
-
-### 2. Configuration Format
-
-Modify `loadRepositoryConfig()` to support different formats:
-
-```java
-private static void loadRepositoryConfig(Path file, Map<String, Set<String>> allowedGroupIds) {
-    // Your custom parser here
-    // Examples:
-    // - JSON configuration
-    // - YAML configuration
-    // - Properties files with key-value pairs
-    // - XML configuration
-}
-```
 
 ## Architecture
 
@@ -378,13 +332,9 @@ Look for log messages from `StrictRemoteRepositoryFilterSource` and `StrictRemot
 ## Important Notes
 
 1. **The filter is enabled by default** - when you register the extension in `.mvn/extensions.xml`, it activates automatically
-2. **Fail-safe behavior** - misconfiguration won't break builds
+2. **Fail-secure behavior** - blocks all artifacts when no configuration exists
 3. **Not for security** - use `maven-enforcer-plugin` for dependency policies
 4. **Optimization tool** - designed to reduce unnecessary 404 requests and improve privacy
-
-## License
-
-This is a skeleton/template implementation. Customize it for your needs.
 
 ## References
 
