@@ -4,6 +4,7 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
 
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.aether.RepositorySystemSession;
 import org.eclipse.aether.spi.connector.filter.RemoteRepositoryFilter;
 import org.eclipse.aether.spi.connector.filter.RemoteRepositoryFilterSource;
@@ -124,9 +125,11 @@ public class StrictRemoteRepositoryFilterSource implements RemoteRepositoryFilte
     private String getBasedir(RepositorySystemSession session) {
         final Object value = session.getConfigProperties().get(CONFIG_PROP_BASEDIR);
         if (value != null) {
-            return String.valueOf(value);
+            // Unwrap double quotes, then single quotes. The value may come with quotes from command line.
+            return StringUtils.unwrap(StringUtils.unwrap(String.valueOf(value), '"'), '\'');
         }
         // Default: .remoteRepositoryFilters (relative to local repository)
         return DEFAULT_BASEDIR;
     }
+
 }

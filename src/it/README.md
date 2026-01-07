@@ -44,6 +44,14 @@ Tests fail-safe behavior when filter is disabled.
 - **Dependencies**: Uses `com.google.guava:guava` (would be blocked if filter were enabled)
 - **Expected**: Build succeeds (filter is disabled, so no blocking occurs)
 
+### 6. quoted-basedir-path
+Tests that quoted paths in configuration are properly handled.
+- **Config**: Allows `commons-io` and Maven infrastructure
+- **Maven Config**: Uses quoted path: `"${session.rootDirectory}/.mvn/remoteRepositoryFilters"`
+- **Dependencies**: Uses `commons-io:commons-io` (allowed)
+- **Expected**: Build succeeds (quotes are stripped, configuration loads correctly)
+- **Purpose**: Verifies fix for issue where Maven config quotes are passed literally
+
 ## Running Integration Tests
 
 ```bash

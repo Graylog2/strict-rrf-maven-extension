@@ -40,7 +40,7 @@ public class StrictRemoteRepositoryFilter implements RemoteRepositoryFilter {
                     artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion(), repository.getId());
             return SimpleFilterResult.accepted();
         } else {
-            logger.info("Rejecting artifact: {}:{}:{} from {} (filtered by strict rules)",
+            logger.debug("Rejecting artifact: {}:{}:{} from {} (filtered by strict rules)",
                     artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion(), repository.getId());
             return SimpleFilterResult.rejected(
                     String.format("Artifact %s:%s:%s not allowed from repository %s by strict filter",
@@ -60,7 +60,7 @@ public class StrictRemoteRepositoryFilter implements RemoteRepositoryFilter {
             logger.debug("Accepting metadata from {}", repository.getId());
             return SimpleFilterResult.accepted();
         } else {
-            logger.info("Rejecting metadata {} from {} (filtered by strict rules)",
+            logger.debug("Rejecting metadata {} from {} (filtered by strict rules)",
                     metadata, repository.getId());
             return SimpleFilterResult.rejected(
                     String.format("Metadata %s not allowed from repository %s by strict filter",
