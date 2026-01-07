@@ -33,7 +33,7 @@ public class StrictRemoteRepositoryFilter implements RemoteRepositoryFilter {
         logger.debug("Checking artifact: {}:{}:{} from repository: {}",
                 artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion(), repository.getId());
 
-        boolean accepted = config.isArtifactAllowed(repository.getId(), artifact);
+        final boolean accepted = config.isArtifactAllowed(repository.getId(), artifact);
 
         if (accepted) {
             logger.debug("Accepting artifact: {}:{}:{} from {}",
@@ -54,7 +54,7 @@ public class StrictRemoteRepositoryFilter implements RemoteRepositoryFilter {
         logger.debug("Checking metadata: {} from repository: {}",
                 metadata, repository.getId());
 
-        boolean accepted = config.isMetadataAllowed(repository.getId(), metadata);
+        final boolean accepted = config.isMetadataAllowed(repository.getId(), metadata);
 
         if (accepted) {
             logger.debug("Accepting metadata from {}", repository.getId());

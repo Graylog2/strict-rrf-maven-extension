@@ -76,7 +76,7 @@ public class StrictRemoteRepositoryFilterSource implements RemoteRepositoryFilte
         }
 
         // Load configuration
-        StrictFilterConfiguration config = loadConfiguration(session);
+        final StrictFilterConfiguration config = loadConfiguration(session);
 
         if (config.isEmpty()) {
             logger.warn("No configuration found for strict filter at: {} - BLOCKING ALL ARTIFACTS (fail-secure mode)",
@@ -98,11 +98,9 @@ public class StrictRemoteRepositoryFilterSource implements RemoteRepositoryFilte
      * @return true if enabled (default), false if explicitly disabled
      */
     private boolean isEnabled(RepositorySystemSession session) {
-        Object value = session.getConfigProperties().get(CONFIG_PROP_ENABLED);
-        if (value == null) {
-            return true; // Enabled by default
-        }
-        return Boolean.parseBoolean(String.valueOf(value));
+        final Object value = session.getConfigProperties().get(CONFIG_PROP_ENABLED);
+        // Enabled by default if not specified
+        return value == null || Boolean.parseBoolean(String.valueOf(value));
     }
 
     /**
@@ -112,8 +110,8 @@ public class StrictRemoteRepositoryFilterSource implements RemoteRepositoryFilte
      * @return the loaded configuration
      */
     private StrictFilterConfiguration loadConfiguration(RepositorySystemSession session) {
-        String basedir = getBasedir(session);
-        Path localRepoBasedir = session.getLocalRepository().getBasedir().toPath();
+        final String basedir = getBasedir(session);
+        final Path localRepoBasedir = session.getLocalRepository().getBasedir().toPath();
         return StrictFilterConfiguration.load(basedir, localRepoBasedir);
     }
 
@@ -124,7 +122,7 @@ public class StrictRemoteRepositoryFilterSource implements RemoteRepositoryFilte
      * @return the base directory path (relative or absolute)
      */
     private String getBasedir(RepositorySystemSession session) {
-        Object value = session.getConfigProperties().get(CONFIG_PROP_BASEDIR);
+        final Object value = session.getConfigProperties().get(CONFIG_PROP_BASEDIR);
         if (value != null) {
             return String.valueOf(value);
         }

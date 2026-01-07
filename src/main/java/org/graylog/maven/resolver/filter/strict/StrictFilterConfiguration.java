@@ -83,12 +83,12 @@ public class StrictFilterConfiguration {
                 return false;
             }
 
-            String groupId = artifact.getGroupId();
-            String artifactId = artifact.getArtifactId();
+            final String groupId = artifact.getGroupId();
+            final String artifactId = artifact.getArtifactId();
 
             // Check if artifact matches any allow pattern
             boolean allowed = false;
-            for (String allowPattern : allowPatterns) {
+            for (final String allowPattern : allowPatterns) {
                 if (matchesPattern(groupId, artifactId, allowPattern)) {
                     allowed = true;
                     break;
@@ -101,7 +101,7 @@ public class StrictFilterConfiguration {
             }
 
             // Check deny patterns (deny overrides allow)
-            for (String denyPattern : denyPatterns) {
+            for (final String denyPattern : denyPatterns) {
                 if (matchesPattern(groupId, artifactId, denyPattern)) {
                     return false;
                 }
@@ -117,12 +117,12 @@ public class StrictFilterConfiguration {
                 return false;
             }
 
-            String groupId = metadata.getGroupId();
-            String artifactId = metadata.getArtifactId();
+            final String groupId = metadata.getGroupId();
+            final String artifactId = metadata.getArtifactId();
 
             // Check if metadata matches any allow pattern
             boolean allowed = false;
-            for (String allowPattern : allowPatterns) {
+            for (final String allowPattern : allowPatterns) {
                 if (matchesMetadataPattern(groupId, artifactId, allowPattern)) {
                     allowed = true;
                     break;
@@ -135,7 +135,7 @@ public class StrictFilterConfiguration {
             }
 
             // Check deny patterns (deny overrides allow)
-            for (String denyPattern : denyPatterns) {
+            for (final String denyPattern : denyPatterns) {
                 if (matchesMetadataPattern(groupId, artifactId, denyPattern)) {
                     return false;
                 }
@@ -158,14 +158,14 @@ public class StrictFilterConfiguration {
             if (pattern.contains(":")) {
                 // If pattern has artifactId but metadata doesn't, check only groupId
                 if (artifactId == null || artifactId.isEmpty()) {
-                    String groupIdPattern = pattern.split(":", 2)[0];
+                    final String groupIdPattern = pattern.split(":", 2)[0];
                     return matchesGlobPattern(groupId, groupIdPattern);
                 }
 
                 // Both metadata and pattern have artifactId - match both
-                String[] parts = pattern.split(":", 2);
-                String groupIdPattern = parts[0];
-                String artifactIdPattern = parts.length > 1 ? parts[1] : "*";
+                final String[] parts = pattern.split(":", 2);
+                final String groupIdPattern = parts[0];
+                final String artifactIdPattern = parts.length > 1 ? parts[1] : "*";
 
                 return matchesGlobPattern(groupId, groupIdPattern)
                     && matchesGlobPattern(artifactId, artifactIdPattern);
@@ -194,9 +194,9 @@ public class StrictFilterConfiguration {
 
             // Check if pattern includes artifactId (contains ':')
             if (pattern.contains(":")) {
-                String[] parts = pattern.split(":", 2);
-                String groupIdPattern = parts[0];
-                String artifactIdPattern = parts.length > 1 ? parts[1] : "*";
+                final String[] parts = pattern.split(":", 2);
+                final String groupIdPattern = parts[0];
+                final String artifactIdPattern = parts.length > 1 ? parts[1] : "*";
 
                 // Both groupId and artifactId must match
                 return matchesGlobPattern(groupId, groupIdPattern)
@@ -221,7 +221,7 @@ public class StrictFilterConfiguration {
             }
 
             // Convert glob pattern to regex
-            String regex = pattern
+            final String regex = pattern
                     .replace(".", "\\.")  // Escape dots
                     .replace("*", ".*");  // Convert * to .*
 
@@ -237,15 +237,15 @@ public class StrictFilterConfiguration {
      * @return a configuration instance
      */
     public static StrictFilterConfiguration load(String basedirConfig, Path localRepoBasedir) {
-        Path basedir = resolveBasedir(basedirConfig, localRepoBasedir);
-        Path configFile = basedir.resolve(CONFIG_FILE_NAME);
+        final Path basedir = resolveBasedir(basedirConfig, localRepoBasedir);
+        final Path configFile = basedir.resolve(CONFIG_FILE_NAME);
 
         if (!Files.exists(configFile) || !Files.isRegularFile(configFile)) {
             logger.debug("Configuration file does not exist: {}", configFile);
             return empty(basedir);
         }
 
-        Map<String, RepositoryRule> repositoryRules = new HashMap<>();
+        final Map<String, RepositoryRule> repositoryRules = new HashMap<>();
         loadPropertiesFile(configFile, repositoryRules);
 
         return new StrictFilterConfiguration(basedir, repositoryRules);
@@ -254,7 +254,7 @@ public class StrictFilterConfiguration {
     private static void loadPropertiesFile(Path file, Map<String, RepositoryRule> repositoryRules) {
         logger.debug("Loading configuration from: {}", file);
 
-        Properties properties = new Properties();
+        final Properties properties = new Properties();
         try (InputStream input = Files.newInputStream(file)) {
             properties.load(input);
         } catch (IOException e) {
@@ -263,21 +263,21 @@ public class StrictFilterConfiguration {
         }
 
         // First pass: collect all repository IDs
-        Map<String, Set<String>> allowPatterns = new HashMap<>();
-        Map<String, Set<String>> denyPatterns = new HashMap<>();
+        final Map<String, Set<String>> allowPatterns = new HashMap<>();
+        final Map<String, Set<String>> denyPatterns = new HashMap<>();
 
-        for (String key : properties.stringPropertyNames()) {
+        for (final String key : properties.stringPropertyNames()) {
             // Check if key starts with "repo."
             if (!key.startsWith(REPO_PREFIX)) {
                 logger.warn("Skipping invalid property '{}' in {}: key must start with 'repo.'", key, file);
                 continue;
             }
 
-            String remainder = key.substring(REPO_PREFIX.length());
+            final String remainder = key.substring(REPO_PREFIX.length());
 
             // Extract repository ID and rule type (.allow or .deny)
-            String repoId;
-            boolean isAllow;
+            final String repoId;
+            final boolean isAllow;
 
             if (remainder.endsWith(ALLOW_SUFFIX)) {
                 repoId = remainder.substring(0, remainder.length() - ALLOW_SUFFIX.length());
@@ -295,14 +295,14 @@ public class StrictFilterConfiguration {
                 continue;
             }
 
-            String value = properties.getProperty(key);
-            if (value == null || value.trim().isEmpty()) {
+            final String value = properties.getProperty(key);
+            if (value == null || value.isBlank()) {
                 logger.debug("Empty value for property '{}', skipping", key);
                 continue;
             }
 
             // Parse comma-separated patterns
-            Set<String> patterns = parsePatterns(value);
+            final Set<String> patterns = parsePatterns(value);
 
             if (!patterns.isEmpty()) {
                 if (isAllow) {
@@ -316,13 +316,13 @@ public class StrictFilterConfiguration {
         }
 
         // Create RepositoryRule for each repository
-        Set<String> allRepoIds = new HashSet<>();
+        final Set<String> allRepoIds = new HashSet<>();
         allRepoIds.addAll(allowPatterns.keySet());
         allRepoIds.addAll(denyPatterns.keySet());
 
-        for (String repoId : allRepoIds) {
-            Set<String> allow = allowPatterns.getOrDefault(repoId, Collections.emptySet());
-            Set<String> deny = denyPatterns.getOrDefault(repoId, Collections.emptySet());
+        for (final String repoId : allRepoIds) {
+            final Set<String> allow = allowPatterns.getOrDefault(repoId, Collections.emptySet());
+            final Set<String> deny = denyPatterns.getOrDefault(repoId, Collections.emptySet());
 
             repositoryRules.put(repoId, new RepositoryRule(allow, deny));
             logger.info("Created rule for repository '{}': {} allow patterns, {} deny patterns",
@@ -335,7 +335,7 @@ public class StrictFilterConfiguration {
     }
 
     private static Set<String> parsePatterns(String value) {
-        Set<String> patterns = new HashSet<>();
+        final Set<String> patterns = new HashSet<>();
         for (String pattern : value.split(",")) {
             pattern = pattern.trim();
             if (!pattern.isEmpty()) {
@@ -346,7 +346,7 @@ public class StrictFilterConfiguration {
     }
 
     private static Path resolveBasedir(String basedirConfig, Path localRepoBasedir) {
-        Path path = Paths.get(basedirConfig);
+        final Path path = Paths.get(basedirConfig);
         if (path.isAbsolute()) {
             return path;
         }
@@ -395,13 +395,9 @@ public class StrictFilterConfiguration {
      * @return true if the artifact is allowed, false otherwise
      */
     public boolean isArtifactAllowed(String repositoryId, Artifact artifact) {
-        RepositoryRule rule = repositoryRules.get(repositoryId);
-        if (rule == null) {
-            // No configuration for this repository - deny by default (fail-secure)
-            return false;
-        }
-
-        return rule.isArtifactAllowed(artifact);
+        final RepositoryRule rule = repositoryRules.get(repositoryId);
+        // No configuration for this repository - deny by default (fail-secure)
+        return rule != null && rule.isArtifactAllowed(artifact);
     }
 
     /**
@@ -419,18 +415,14 @@ public class StrictFilterConfiguration {
      * @return true if the metadata is allowed, false otherwise
      */
     public boolean isMetadataAllowed(String repositoryId, Metadata metadata) {
-        String groupId = metadata.getGroupId();
+        final String groupId = metadata.getGroupId();
         if (groupId == null || groupId.isEmpty()) {
             // Allow metadata without groupId (e.g., repository-level metadata)
             return true;
         }
 
-        RepositoryRule rule = repositoryRules.get(repositoryId);
-        if (rule == null) {
-            // No configuration for this repository - deny by default (fail-secure)
-            return false;
-        }
-
-        return rule.isMetadataAllowed(metadata);
+        final RepositoryRule rule = repositoryRules.get(repositoryId);
+        // No configuration for this repository - deny by default (fail-secure)
+        return rule != null && rule.isMetadataAllowed(metadata);
     }
 }
