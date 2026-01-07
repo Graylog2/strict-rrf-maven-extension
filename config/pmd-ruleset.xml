@@ -1,0 +1,77 @@
+<?xml version="1.0"?>
+<ruleset name="Custom Rules"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+
+    <description>
+        PMD ruleset for strict-rrf-maven-extension
+    </description>
+
+    <!-- Best Practices - exclude overly strict rules -->
+    <rule ref="category/java/bestpractices.xml">
+        <exclude name="GuardLogStatement"/>
+        <exclude name="UseVarargs"/>
+        <exclude name="UnitTestContainsTooManyAsserts"/>
+        <exclude name="AvoidReassigningLoopVariables"/>
+    </rule>
+
+    <!-- Code Style - exclude naming and formatting rules that are too opinionated -->
+    <rule ref="category/java/codestyle.xml">
+        <exclude name="OnlyOneReturn"/>
+        <exclude name="AtLeastOneConstructor"/>
+        <exclude name="CommentDefaultAccessModifier"/>
+        <exclude name="CallSuperInConstructor"/>
+        <exclude name="FieldNamingConventions"/>
+        <exclude name="LongVariable"/>
+        <exclude name="ShortVariable"/>
+        <exclude name="ShortClassName"/>
+        <exclude name="TooManyStaticImports"/>
+        <exclude name="UnnecessaryFullyQualifiedName"/>
+        <exclude name="MethodArgumentCouldBeFinal"/>
+    </rule>
+
+    <!-- Allow logger to be lowercase (slf4j logger convention) -->
+    <rule ref="category/java/codestyle.xml/FieldNamingConventions">
+        <properties>
+            <property name="constantPattern" value="[A-Z][A-Z_0-9]*|logger"/>
+            <property name="enumConstantPattern" value="[A-Z][A-Z_0-9]*"/>
+            <property name="finalFieldPattern" value="[a-z][a-zA-Z0-9]*"/>
+            <property name="defaultFieldPattern" value="[a-z][a-zA-Z0-9]*"/>
+        </properties>
+    </rule>
+
+    <!-- Design rules - exclude complexity metrics that are too strict -->
+    <rule ref="category/java/design.xml">
+        <exclude name="LawOfDemeter"/>
+        <exclude name="LoosePackageCoupling"/>
+        <exclude name="CyclomaticComplexity"/>
+        <exclude name="NPathComplexity"/>
+        <exclude name="ExcessiveImports"/>
+        <exclude name="TooManyMethods"/>
+        <exclude name="UseUtilityClass"/>
+        <exclude name="AvoidCatchingGenericException"/>
+        <exclude name="ClassWithOnlyPrivateConstructorsShouldBeFinal"/>
+        <exclude name="ImmutableField"/>
+    </rule>
+
+    <!-- Allow higher cognitive complexity for parsing methods -->
+    <rule ref="category/java/design.xml/CognitiveComplexity">
+        <properties>
+            <property name="reportLevel" value="25"/>
+        </properties>
+    </rule>
+
+    <!-- Error Prone - keep most rules but exclude some false positives -->
+    <rule ref="category/java/errorprone.xml">
+        <exclude name="AvoidFieldNameMatchingMethodName"/>
+        <exclude name="AvoidLiteralsInIfCondition"/>
+        <exclude name="AvoidDuplicateLiterals"/>
+    </rule>
+
+    <!-- Performance - exclude overly pedantic rules -->
+    <rule ref="category/java/performance.xml">
+        <exclude name="AvoidInstantiatingObjectsInLoops"/>
+    </rule>
+
+</ruleset>

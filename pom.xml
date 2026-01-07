@@ -89,8 +89,21 @@
                 <version>3.28.0</version>
                 <configuration>
                     <includeTests>true</includeTests>
+                    <linkXRef>false</linkXRef>
                     <targetJdk>${maven.compiler.target}</targetJdk>
+                    <rulesets>
+                        <!-- Use custom ruleset that excludes overly strict rules -->
+                        <ruleset>${project.basedir}/config/pmd-ruleset.xml</ruleset>
+                    </rulesets>
+                    <printFailingErrors>true</printFailingErrors>
                 </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
 
             <plugin>
@@ -99,6 +112,7 @@
                 <version>3.14.1</version>
                 <configuration>
                     <release>11</release>
+                    <showDeprecation>true</showDeprecation>
                 </configuration>
             </plugin>
 
