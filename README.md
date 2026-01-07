@@ -341,3 +341,7 @@ Look for log messages from `StrictRemoteRepositoryFilterSource` and `StrictRemot
 - [Maven Resolver Remote Repository Filtering](https://maven.apache.org/resolver/remote-repository-filtering.html)
 - [Maven Extension Guide](https://maven.apache.org/guides/mini/guide-using-extensions.html)
 - [Maven Resolver SPI](https://maven.apache.org/resolver/maven-resolver-spi/)
+
+---
+
+*This project was developed with [Claude Code](https://claude.com/claude-code).*
