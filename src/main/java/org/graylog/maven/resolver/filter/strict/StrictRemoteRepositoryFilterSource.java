@@ -70,13 +70,11 @@ public class StrictRemoteRepositoryFilterSource implements RemoteRepositoryFilte
 
     @Override
     public RemoteRepositoryFilter getRemoteRepositoryFilter(RepositorySystemSession session) {
-        // Check if filter is enabled
         if (!isEnabled(session)) {
             logger.debug("Strict filter is not enabled, abstaining from filtering");
-            return null; // Abstain from filtering
+            return null;
         }
 
-        // Load configuration
         final StrictFilterConfiguration config = loadConfiguration(session);
 
         if (config.isEmpty()) {
@@ -131,5 +129,4 @@ public class StrictRemoteRepositoryFilterSource implements RemoteRepositoryFilte
         // Default: .remoteRepositoryFilters (relative to local repository)
         return DEFAULT_BASEDIR;
     }
-
 }

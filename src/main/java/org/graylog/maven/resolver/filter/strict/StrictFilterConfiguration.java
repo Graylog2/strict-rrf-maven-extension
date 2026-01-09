@@ -1,6 +1,5 @@
 package org.graylog.maven.resolver.filter.strict;
 
-import org.apache.maven.shared.utils.io.SelectorUtils;
 import org.eclipse.aether.artifact.Artifact;
 import org.eclipse.aether.metadata.Metadata;
 import org.slf4j.Logger;
@@ -11,12 +10,13 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Configuration for the strict remote repository filter.
@@ -57,182 +57,14 @@ public class StrictFilterConfiguration {
     private static final String REPO_PREFIX = "repo.";
     private static final String ALLOW_SUFFIX = ".allow";
     private static final String DENY_SUFFIX = ".deny";
+    private static final long MAX_FILE_SIZE = 10 * 1024 * 1024;
 
     private final Path basedir;
-    private final Map<String, RepositoryRule> repositoryRules; // repositoryId -> RepositoryRule
+    private final Map<String, RepositoryRule> repositoryRules;
 
     private StrictFilterConfiguration(Path basedir, Map<String, RepositoryRule> repositoryRules) {
         this.basedir = basedir;
-        this.repositoryRules = repositoryRules;
-    }
-
-    /**
-     * Repository filtering rule with allow and deny patterns.
-     */
-    private static class RepositoryRule {
-        private final Set<String> allowPatterns;
-        private final Set<String> denyPatterns;
-
-        RepositoryRule(Set<String> allowPatterns, Set<String> denyPatterns) {
-            this.allowPatterns = allowPatterns;
-            this.denyPatterns = denyPatterns;
-        }
-
-        boolean isArtifactAllowed(Artifact artifact) {
-            // If no allow patterns specified, deny by default
-            if (allowPatterns.isEmpty()) {
-                return false;
-            }
-
-            final String groupId = artifact.getGroupId();
-            final String artifactId = artifact.getArtifactId();
-
-            // Check if artifact matches any allow pattern
-            boolean allowed = false;
-            for (final String allowPattern : allowPatterns) {
-                if (matchesPattern(groupId, artifactId, allowPattern)) {
-                    allowed = true;
-                    break;
-                }
-            }
-
-            // If not in allow list, deny
-            if (!allowed) {
-                return false;
-            }
-
-            // Check deny patterns (deny overrides allow)
-            for (final String denyPattern : denyPatterns) {
-                if (matchesPattern(groupId, artifactId, denyPattern)) {
-                    return false;
-                }
-            }
-
-            // Allowed and not denied
-            return true;
-        }
-
-        boolean isMetadataAllowed(Metadata metadata) {
-            // If no allow patterns specified, deny by default
-            if (allowPatterns.isEmpty()) {
-                return false;
-            }
-
-            final String groupId = metadata.getGroupId();
-            final String artifactId = metadata.getArtifactId();
-
-            // Check if metadata matches any allow pattern
-            boolean allowed = false;
-            for (final String allowPattern : allowPatterns) {
-                if (matchesMetadataPattern(groupId, artifactId, allowPattern)) {
-                    allowed = true;
-                    break;
-                }
-            }
-
-            // If not in allow list, deny
-            if (!allowed) {
-                return false;
-            }
-
-            // Check deny patterns (deny overrides allow)
-            for (final String denyPattern : denyPatterns) {
-                if (matchesMetadataPattern(groupId, artifactId, denyPattern)) {
-                    return false;
-                }
-            }
-
-            // Allowed and not denied
-            return true;
-        }
-
-        /**
-         * Matches metadata against a glob pattern.
-         * Metadata can have groupId only (group-level) or both groupId and artifactId (artifact-level).
-         */
-        private static boolean matchesMetadataPattern(String groupId, String artifactId, String pattern) {
-            if ("*".equals(pattern)) {
-                return true;
-            }
-
-            // Check if pattern includes artifactId (contains ':')
-            if (pattern.contains(":")) {
-                // If pattern has artifactId but metadata doesn't, check only groupId
-                if (artifactId == null || artifactId.isEmpty()) {
-                    final String groupIdPattern = pattern.split(":", 2)[0];
-                    return matchesGlobPattern(groupId, groupIdPattern);
-                }
-
-                // Both metadata and pattern have artifactId - match both
-                final String[] parts = pattern.split(":", 2);
-                final String groupIdPattern = parts[0];
-                final String artifactIdPattern = parts.length > 1 ? parts[1] : "*";
-
-                return matchesGlobPattern(groupId, groupIdPattern)
-                        && matchesGlobPattern(artifactId, artifactIdPattern);
-            }
-
-            // Legacy groupId-only pattern
-            return matchesGlobPattern(groupId, pattern);
-        }
-
-        /**
-         * Matches an artifact against a glob pattern.
-         * Supports * as wildcard and groupId:artifactId coordinate patterns.
-         * <p>
-         * Examples:
-         * - "com.google" matches groupId "com.google" or "com.google.foo"
-         * - "com.google*" matches groupId "com.google", "com.googlefoo", "com.google.foo"
-         * - "com.google.*" matches groupId "com.google.foo" but not "com.google"
-         * - "com.opensaml:*" matches any artifact in groupId "com.opensaml"
-         * - "com.foobar:test-*" matches artifacts starting with "test-" in groupId "com.foobar"
-         * - "*" matches everything
-         */
-        private static boolean matchesPattern(String groupId, String artifactId, String pattern) {
-            if ("*".equals(pattern)) {
-                return true;
-            }
-
-            // Check if pattern includes artifactId (contains ':')
-            if (pattern.contains(":")) {
-                final String[] parts = pattern.split(":", 2);
-                final String groupIdPattern = parts[0];
-                final String artifactIdPattern = parts.length > 1 ? parts[1] : "*";
-
-                // Both groupId and artifactId must match
-                return matchesGlobPattern(groupId, groupIdPattern)
-                        && matchesGlobPattern(artifactId, artifactIdPattern);
-            }
-
-            // Legacy groupId-only pattern
-            return matchesGlobPattern(groupId, pattern);
-        }
-
-        /**
-         * Matches a string against a glob pattern using Maven's SelectorUtils.
-         * SelectorUtils provides battle-tested glob matching with * and ? wildcards.
-         * Uses . as the path separator to match Maven groupId/artifactId structure.
-         *
-         * <p>Note: SelectorUtils is deprecated but still the most reliable option for Maven glob matching.
-         * No clear replacement has been provided yet. Alternative (maven-common-artifact-filters) uses
-         * incompatible Maven Artifact API instead of Aether/Resolver API.
-         */
-        @SuppressWarnings("deprecation")
-        private static boolean matchesGlobPattern(String value, String pattern) {
-            if ("*".equals(pattern)) {
-                return true;
-            }
-
-            if (!pattern.contains("*") && !pattern.contains("?")) {
-                // No wildcard - exact match or prefix match (for groupId legacy behavior)
-                return value.equals(pattern) || value.startsWith(pattern + ".");
-            }
-
-            // Use SelectorUtils for glob pattern matching
-            // SelectorUtils.matchPath treats both / and . as path separators
-            // which is perfect for matching Maven coordinates like "com.google.foo"
-            return SelectorUtils.matchPath(pattern, value, true);
-        }
+        this.repositoryRules = Map.copyOf(repositoryRules);
     }
 
     /**
@@ -246,29 +78,31 @@ public class StrictFilterConfiguration {
         final Path basedir = resolveBasedir(basedirConfig, localRepoBasedir);
         final Path configFile = basedir.resolve(CONFIG_FILE_NAME);
 
-        if (!Files.exists(configFile) || !Files.isRegularFile(configFile)) {
-            logger.debug("Configuration file does not exist: {}", configFile);
-            return empty(basedir);
-        }
-
-        final Map<String, RepositoryRule> repositoryRules = new HashMap<>();
-        loadPropertiesFile(configFile, repositoryRules);
-
-        return new StrictFilterConfiguration(basedir, repositoryRules);
+        return new StrictFilterConfiguration(basedir, loadPropertiesFile(configFile));
     }
 
-    private static void loadPropertiesFile(Path file, Map<String, RepositoryRule> repositoryRules) {
+    private static Map<String, RepositoryRule> loadPropertiesFile(Path file) {
         logger.debug("Loading configuration from: {}", file);
+
+        if (!Files.exists(file)) {
+            logger.debug("Configuration file does not exist: {}", file);
+            return Map.of();
+        }
+
+        // Avoid loading excessively large files
+        if (!validateFileSize(file)) {
+            return Map.of();
+        }
 
         final Properties properties = new Properties();
         try (InputStream input = Files.newInputStream(file)) {
             properties.load(input);
         } catch (IOException e) {
             logger.warn("Failed to read configuration file: {}", file, e);
-            return;
+            return Map.of();
         }
 
-        // First pass: collect all repository IDs
+        // First collect all repository IDs
         final Map<String, Set<String>> allowPatterns = new HashMap<>();
         final Map<String, Set<String>> denyPatterns = new HashMap<>();
 
@@ -307,8 +141,10 @@ public class StrictFilterConfiguration {
                 continue;
             }
 
-            // Parse comma-separated patterns
-            final Set<String> patterns = parsePatterns(value);
+            final Set<String> patterns = Arrays.stream(value.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toSet());
 
             if (!patterns.isEmpty()) {
                 if (isAllow) {
@@ -322,13 +158,14 @@ public class StrictFilterConfiguration {
         }
 
         // Create RepositoryRule for each repository
+        final Map<String, RepositoryRule> repositoryRules = new HashMap<>();
         final Set<String> allRepoIds = new HashSet<>();
         allRepoIds.addAll(allowPatterns.keySet());
         allRepoIds.addAll(denyPatterns.keySet());
 
         for (final String repoId : allRepoIds) {
-            final Set<String> allow = allowPatterns.getOrDefault(repoId, Collections.emptySet());
-            final Set<String> deny = denyPatterns.getOrDefault(repoId, Collections.emptySet());
+            final Set<String> allow = allowPatterns.getOrDefault(repoId, Set.of());
+            final Set<String> deny = denyPatterns.getOrDefault(repoId, Set.of());
 
             repositoryRules.put(repoId, new RepositoryRule(allow, deny));
             logger.info("Created rule for repository '{}': {} allow patterns, {} deny patterns",
@@ -338,17 +175,29 @@ public class StrictFilterConfiguration {
         if (repositoryRules.isEmpty()) {
             logger.debug("No repository rules loaded from: {}", file);
         }
+
+        return repositoryRules;
     }
 
-    private static Set<String> parsePatterns(String value) {
-        final Set<String> patterns = new HashSet<>();
-        for (String pattern : value.split(",")) {
-            pattern = pattern.trim();
-            if (!pattern.isEmpty()) {
-                patterns.add(pattern);
+    /**
+     * Validates that a file size is within acceptable limits.
+     *
+     * @param file the file to validate
+     * @return true if the file size is acceptable, false otherwise
+     */
+    private static boolean validateFileSize(Path file) {
+        try {
+            final long fileSize = Files.size(file);
+            if (fileSize > MAX_FILE_SIZE) {
+                logger.warn("Configuration file {} is too large ({} bytes, max {} bytes), skipping",
+                        file, fileSize, MAX_FILE_SIZE);
+                return false;
             }
+            return true;
+        } catch (IOException e) {
+            logger.warn("Failed to check size of configuration file: {}", file, e);
+            return false;
         }
-        return patterns;
     }
 
     private static Path resolveBasedir(String basedirConfig, Path localRepoBasedir) {
@@ -358,10 +207,6 @@ public class StrictFilterConfiguration {
         }
         // Relative path: resolve from local repository base directory
         return localRepoBasedir.resolve(basedirConfig);
-    }
-
-    private static StrictFilterConfiguration empty(Path basedir) {
-        return new StrictFilterConfiguration(basedir, Collections.emptyMap());
     }
 
     /**

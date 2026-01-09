@@ -7,7 +7,7 @@ import org.eclipse.aether.spi.connector.filter.RemoteRepositoryFilter;
  * This class represents the outcome of a repository filter decision,
  * indicating whether an artifact or metadata should be accepted or rejected.
  */
-public class SimpleFilterResult implements RemoteRepositoryFilter.Result {
+class SimpleFilterResult implements RemoteRepositoryFilter.Result {
 
     private static final SimpleFilterResult ACCEPTED = new SimpleFilterResult(true, null);
 
