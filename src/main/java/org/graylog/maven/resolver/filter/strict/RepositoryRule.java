@@ -71,7 +71,7 @@ class RepositoryRule {
 
     /**
      * Matches an artifact against a glob pattern.
-     * Supports * and ? as wildcards and groupId:artifactId coordinate patterns.
+     * Supports * as wildcard and groupId:artifactId coordinate patterns.
      * <p>
      * Examples:
      * - "com.google" matches only groupId "com.google" (exact match)
@@ -125,7 +125,7 @@ class RepositoryRule {
 
     /**
      * Matches a string against a glob pattern using Maven's SelectorUtils.
-     * SelectorUtils provides battle-tested glob matching with * and ? wildcards.
+     * SelectorUtils provides battle-tested glob matching with * wildcard.
      * Uses . as the path separator to match Maven groupId/artifactId structure.
      *
      * <p>Note: SelectorUtils is deprecated but still the most reliable option for Maven glob matching.
@@ -138,7 +138,7 @@ class RepositoryRule {
             return true;
         }
 
-        if (!pattern.contains("*") && !pattern.contains("?")) {
+        if (!pattern.contains("*")) {
             // No wildcard - exact match only
             return value.equals(pattern);
         }
