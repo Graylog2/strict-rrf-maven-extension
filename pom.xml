@@ -38,9 +38,9 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <maven.compiler.release>11</maven.compiler.release>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
+        <maven.compiler.release>17</maven.compiler.release>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
         <!-- Maven 3.9.0 uses Resolver 1.9.16, 3.9.11 uses 1.9.24, 3.9.12 uses 1.9.25 -->
         <maven.resolver.version>1.9.25</maven.resolver.version>
     </properties>
@@ -133,7 +133,7 @@
                                 <banDuplicatePomDependencyVersions />
                                 <banDynamicVersions />
                                 <requireJavaVersion>
-                                    <version>11</version>
+                                    <version>17</version>
                                 </requireJavaVersion>
                                 <requireMavenVersion>
                                     <version>[3.9.0,3.99.99]</version>
@@ -172,7 +172,6 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.14.1</version>
                 <configuration>
-                    <release>11</release>
                     <showDeprecation>true</showDeprecation>
                     <showWarnings>true</showWarnings>
                 </configuration>

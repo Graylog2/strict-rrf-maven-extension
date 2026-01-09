@@ -326,7 +326,7 @@ Look for log messages from `StrictRemoteRepositoryFilterSource` and `StrictRemot
 ## Requirements
 
 - **Maven**: 3.9.0 or later
-- **Java**: 11 or later
+- **Java**: 17 or later
 
 ## Important Notes
 
