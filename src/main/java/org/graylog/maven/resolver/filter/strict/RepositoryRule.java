@@ -46,13 +46,8 @@ class RepositoryRule {
         final boolean allowed = allowPatterns.stream()
                 .anyMatch(allowPattern -> matcher.matches(groupId, artifactId, allowPattern));
 
-        // If not in allow list, deny
-        if (!allowed) {
-            return false;
-        }
-
         // Check deny patterns (deny overrides allow)
-        return denyPatterns.stream()
+        return allowed && denyPatterns.stream()
                 .noneMatch(denyPattern -> matcher.matches(groupId, artifactId, denyPattern));
     }
 
@@ -76,10 +71,10 @@ class RepositoryRule {
 
     /**
      * Matches an artifact against a glob pattern.
-     * Supports * as wildcard and groupId:artifactId coordinate patterns.
+     * Supports * and ? as wildcards and groupId:artifactId coordinate patterns.
      * <p>
      * Examples:
-     * - "com.google" matches groupId "com.google" or "com.google.foo"
+     * - "com.google" matches only groupId "com.google" (exact match)
      * - "com.google*" matches groupId "com.google", "com.googlefoo", "com.google.foo"
      * - "com.google.*" matches groupId "com.google.foo" but not "com.google"
      * - "com.opensaml:*" matches any artifact in groupId "com.opensaml"
@@ -124,7 +119,7 @@ class RepositoryRule {
                     && matchesGlobPattern(artifactId, artifactIdPattern);
         }
 
-        // Legacy groupId-only pattern
+        // GroupId-only pattern
         return matchesGlobPattern(groupId, pattern);
     }
 
@@ -144,8 +139,8 @@ class RepositoryRule {
         }
 
         if (!pattern.contains("*") && !pattern.contains("?")) {
-            // No wildcard - exact match or prefix match (for groupId legacy behavior)
-            return value.equals(pattern) || value.startsWith(pattern + ".");
+            // No wildcard - exact match only
+            return value.equals(pattern);
         }
 
         // Use SelectorUtils for glob pattern matching

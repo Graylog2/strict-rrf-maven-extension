@@ -7,10 +7,13 @@ import org.eclipse.aether.metadata.Metadata;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Unit tests for {@link StrictFilterConfiguration}.
@@ -20,7 +23,7 @@ class StrictFilterConfigurationTest {
     /**
      * Helper method to write strict.properties configuration file.
      */
-    private void writeStrictProperties(Path tempDir, String content) throws Exception {
+    private void writeStrictProperties(Path tempDir, String content) throws IOException {
         Files.writeString(tempDir.resolve("strict.properties"), content);
     }
 
@@ -52,7 +55,7 @@ class StrictFilterConfigurationTest {
         writeStrictProperties(tempDir, """
                 # Comment line
                 repo.central.allow = org.graylog,org.apache.commons,org.springframework
-
+                
                 # Another comment
                 """);
 
@@ -82,7 +85,7 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testArtifactAllowed(@TempDir Path tempDir) throws Exception {
-        writeStrictProperties(tempDir, "repo.central.allow = org.graylog,org.apache.commons\n");
+        writeStrictProperties(tempDir, "repo.central.allow = org.graylog*,org.apache.commons*\n");
 
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
                 tempDir.toString(),
@@ -94,10 +97,10 @@ class StrictFilterConfigurationTest {
         assertTrue(config.isArtifactAllowed("central", artifact1),
                 "Artifact with matching groupId should be allowed");
 
-        // Test prefix match (legacy behavior without wildcard)
+        // Test wildcard match - sub-packages
         final Artifact artifact2 = new DefaultArtifact("org.graylog.plugin:another-artifact:1.0");
         assertTrue(config.isArtifactAllowed("central", artifact2),
-                "Artifact with matching groupId prefix should be allowed");
+                "Artifact with matching groupId wildcard should be allowed");
 
         // Test not allowed (default deny)
         final Artifact artifact3 = new DefaultArtifact("com.example:different-artifact:1.0");
@@ -208,8 +211,8 @@ class StrictFilterConfigurationTest {
         writeStrictProperties(tempDir, """
                 # This is a comment
                 # Another comment
-
-
+                
+                
                 """);
 
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
@@ -226,10 +229,10 @@ class StrictFilterConfigurationTest {
                 # Shibboleth repository
                 repo.shibboleth.allow = org.opensaml,net.shibboleth
                 repo.shibboleth.deny = org.opensaml.internal*
-
+                
                 # Maven Central - multiple groupIds
                 repo.central.allow = org.graylog,org.apache.maven,org.springframework
-
+                
                 # Company repo - single groupId
                 repo.company.allow = com.company
                 """);
@@ -265,7 +268,7 @@ class StrictFilterConfigurationTest {
     @Test
     void testGlobPatterns(@TempDir Path tempDir) throws Exception {
         writeStrictProperties(tempDir, """
-                repo.test.allow = com.google,com.foo*
+                repo.test.allow = com.google*,com.foo*
                 repo.test.deny = com.google.internal.*
                 """);
 
@@ -279,10 +282,10 @@ class StrictFilterConfigurationTest {
         assertTrue(config.isArtifactAllowed("test", exact),
                 "Exact match should be allowed");
 
-        // Test prefix match (without wildcard in pattern)
-        final Artifact prefix = new DefaultArtifact("com.google.common:base:1.0");
-        assertTrue(config.isArtifactAllowed("test", prefix),
-                "Prefix match should be allowed");
+        // Test wildcard match - sub-packages
+        final Artifact subPackage = new DefaultArtifact("com.google.common:base:1.0");
+        assertTrue(config.isArtifactAllowed("test", subPackage),
+                "Sub-package should match wildcard pattern");
 
         // Test glob with * - denied
         final Artifact denied = new DefaultArtifact("com.google.internal.tools:something:1.0");
@@ -336,12 +339,12 @@ class StrictFilterConfigurationTest {
         writeStrictProperties(tempDir, """
                 # Valid line
                 repo.central.allow = org.graylog
-
+                
                 # Invalid lines that should be skipped
                 repo.invalid = org.apache
                 notrepo.something.allow = org.apache
                 repo..allow = org.empty
-
+                
                 # Another valid line
                 repo.company.allow = com.company
                 """);
@@ -441,14 +444,15 @@ class StrictFilterConfigurationTest {
                 tempDir
         );
 
-        // Test groupId-only pattern (org.graylog)
+        // Test groupId-only pattern (org.graylog) - exact match
         final Artifact artifact1 = new DefaultArtifact("org.graylog:server:1.0");
         assertTrue(config.isArtifactAllowed("mixed", artifact1),
                 "Should allow org.graylog:server via groupId pattern");
 
+        // Sub-package should NOT match without wildcard
         final Artifact artifact2 = new DefaultArtifact("org.graylog.plugin:plugin-api:1.0");
-        assertTrue(config.isArtifactAllowed("mixed", artifact2),
-                "Should allow org.graylog.plugin:plugin-api via groupId pattern");
+        assertFalse(config.isArtifactAllowed("mixed", artifact2),
+                "Should NOT allow org.graylog.plugin without wildcard in pattern");
 
         // Test coordinate pattern with wildcard (com.opensaml:*)
         final Artifact artifact3 = new DefaultArtifact("com.opensaml:opensaml-core:4.0.0");
@@ -527,9 +531,9 @@ class StrictFilterConfigurationTest {
     }
 
     @Test
-    void testCoordinatePatternBackwardCompatibility(@TempDir Path tempDir) throws Exception {
+    void testExactGroupIdMatching(@TempDir Path tempDir) throws Exception {
         writeStrictProperties(tempDir, """
-                # Legacy groupId-only pattern should still work
+                # Exact groupId matching (no prefix match)
                 repo.test.allow = org.graylog,org.apache.commons
                 """);
 
@@ -538,18 +542,25 @@ class StrictFilterConfigurationTest {
                 tempDir
         );
 
-        // Legacy prefix matching should still work
+        // Exact match should work
         final Artifact artifact1 = new DefaultArtifact("org.graylog:server:1.0");
         assertTrue(config.isArtifactAllowed("test", artifact1),
-                "Legacy groupId pattern should still work");
+                "Exact groupId match should be allowed");
 
+        // Sub-package should NOT match without wildcard
         final Artifact artifact2 = new DefaultArtifact("org.graylog.plugin:api:2.0");
-        assertTrue(config.isArtifactAllowed("test", artifact2),
-                "Legacy groupId prefix matching should still work");
+        assertFalse(config.isArtifactAllowed("test", artifact2),
+                "Sub-package should NOT match without wildcard");
 
+        // Exact match should work
         final Artifact artifact3 = new DefaultArtifact("org.apache.commons:commons-lang3:3.0");
         assertTrue(config.isArtifactAllowed("test", artifact3),
-                "Legacy groupId pattern should still work");
+                "Exact groupId match should be allowed");
+
+        // Sub-package should NOT match
+        final Artifact artifact4 = new DefaultArtifact("org.apache.commons.io:commons-io:2.0");
+        assertFalse(config.isArtifactAllowed("test", artifact4),
+                "Sub-package should NOT match without wildcard");
     }
 
     @Test

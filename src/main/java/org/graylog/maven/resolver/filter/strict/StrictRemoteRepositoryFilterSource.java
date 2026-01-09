@@ -1,9 +1,5 @@
 package org.graylog.maven.resolver.filter.strict;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Singleton;
-
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.aether.RepositorySystemSession;
 import org.eclipse.aether.spi.connector.filter.RemoteRepositoryFilter;
@@ -11,6 +7,9 @@ import org.eclipse.aether.spi.connector.filter.RemoteRepositoryFilterSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.inject.Inject;
+import javax.inject.Named;
+import javax.inject.Singleton;
 import java.nio.file.Path;
 
 /**
