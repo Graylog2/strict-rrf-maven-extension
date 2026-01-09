@@ -52,6 +52,14 @@ Tests that quoted paths in configuration are properly handled.
 - **Expected**: Build succeeds (quotes are stripped, configuration loads correctly)
 - **Purpose**: Verifies fix for issue where Maven config quotes are passed literally
 
+### 7. metadata-filtering
+Tests that the filter correctly blocks metadata requests.
+- **Config**: Allows Maven infrastructure, denies `com.google.guava`
+- **Dependencies**: Uses `com.google.guava:guava:[30.0,32.0)` (version range)
+- **Expected**: Build FAILS (metadata blocked, version range cannot be resolved)
+- **Purpose**: Exercises the `acceptMetadata()` code path by using version ranges that force metadata resolution
+- **Note**: `invoker.properties` sets `invoker.buildResult=failure`
+
 ## Running Integration Tests
 
 ```bash
