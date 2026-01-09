@@ -89,17 +89,17 @@ The properties file defines allow and deny rules per repository:
 
 ```properties
 # Shibboleth repository - allow and deny rules
-repo.shibboleth.allow = org.opensaml,net.shibboleth
+repo.shibboleth.allow = org.opensaml*,net.shibboleth*
 repo.shibboleth.deny = org.opensaml.internal*,net.shibboleth.internal*
 
-# Maven Central - groupId patterns
-repo.central.allow = org.graylog,org.apache.maven,org.springframework
+# Maven Central - groupId patterns with wildcards
+repo.central.allow = org.graylog*,org.apache.maven*,org.springframework*
 
 # Company repository - coordinate patterns (groupId:artifactId)
 repo.company.allow = com.company:*,com.other:lib-*
 
 # Mixed patterns - both groupId and coordinate patterns
-repo.test.allow = org.junit,com.google:guava,com.google:gson
+repo.test.allow = org.junit*,com.google:guava,com.google:gson
 
 # Lines starting with # are comments
 # Empty lines are ignored
@@ -107,10 +107,11 @@ repo.test.allow = org.junit,com.google:guava,com.google:gson
 
 **Format Rules**:
 - **Allow rule**: `repo.{repositoryId}.allow = pattern1,pattern2,...`
-  - GroupId pattern: `org.graylog` (matches all artifacts in this groupId)
-  - Coordinate pattern: `com.company:*` (matches all artifacts in this groupId)
-  - Coordinate pattern: `com.test:lib-*` (matches artifacts starting with "lib-" in this groupId)
-  - Coordinate pattern: `com.google:guava` (matches only the specific artifact)
+  - GroupId exact match: `org.graylog` (matches only exact groupId `org.graylog`)
+  - GroupId wildcard: `org.graylog*` (matches `org.graylog` and all sub-packages like `org.graylog.plugin`)
+  - Coordinate pattern: `com.company:*` (matches all artifacts in groupId `com.company`)
+  - Coordinate pattern: `com.test:lib-*` (matches artifacts starting with "lib-" in groupId `com.test`)
+  - Coordinate exact match: `com.google:guava` (matches only the specific artifact)
 - **Deny rule**: `repo.{repositoryId}.deny = pattern1,pattern2,...`
   - Same pattern formats as allow rules
 - Whitespace around keys, values, and commas is automatically trimmed
@@ -131,11 +132,12 @@ Patterns support both groupId-only and full coordinate (groupId:artifactId) patt
 
 #### GroupId-Only Patterns
 
-- **Without wildcard** (prefix matching):
-  - `org.graylog` matches: `org.graylog:*`, `org.graylog.plugin:*`, `org.graylog.server.*:*`
-  - Does NOT match: `org.graylog2:*` (not a prefix)
+- **Exact match** (no wildcard):
+  - `org.graylog` matches only: `org.graylog:*` (exact groupId match)
+  - Does NOT match: `org.graylog.plugin:*`, `org.graylog2:*`
 
-- **With wildcard** (glob matching):
+- **Wildcard matching**:
+  - `org.graylog*` matches: `org.graylog:*`, `org.graylog.plugin:*`, `org.graylog.server.*:*`
   - `com.google.*` matches: `com.google.foo:*`, `com.google.bar.baz:*`
   - Does NOT match: `com.google:*` (requires dot after google)
   - `com.google*` matches: `com.google:*`, `com.googlecode:*`, `com.google.foo:*`
@@ -168,8 +170,8 @@ Patterns support both groupId-only and full coordinate (groupId:artifactId) patt
 Create `~/.m2/repository/.remoteRepositoryFilters/strict.properties`:
 
 ```properties
-# Only allow these groupIds from Maven Central
-repo.central.allow = org.graylog,org.apache.maven,org.apache.commons
+# Only allow these groupIds from Maven Central (with wildcards to include sub-packages)
+repo.central.allow = org.graylog*,org.apache.maven*,org.apache.commons*
 ```
 
 Run Maven (filter is enabled by default):
@@ -178,7 +180,7 @@ Run Maven (filter is enabled by default):
 mvn clean compile
 ```
 
-Only artifacts from the allowed groupIds will be fetched from Maven Central. Everything else is denied by default.
+Only artifacts from the allowed groupIds and their sub-packages will be fetched from Maven Central. Everything else is denied by default.
 
 **For project-specific configuration**, add to `.mvn/maven.config`:
 ```
@@ -192,14 +194,14 @@ Then create `.mvn/remoteRepositoryFilters/strict.properties` in your project roo
 Allow broad groupIds but deny specific sub-packages:
 
 ```properties
-# Shibboleth repository - allow main packages
-repo.shibboleth.allow = org.opensaml,net.shibboleth
+# Shibboleth repository - allow main packages (with wildcards)
+repo.shibboleth.allow = org.opensaml*,net.shibboleth*
 
 # But deny internal packages
 repo.shibboleth.deny = org.opensaml.internal*,net.shibboleth.internal*
 ```
 
-This allows `org.opensaml:opensaml-core` but denies `org.opensaml.internal:something`.
+This allows `org.opensaml:opensaml-core` and `org.opensaml.core:*` but denies `org.opensaml.internal:something`.
 
 ### Example 3: Multiple Repositories
 
@@ -207,14 +209,14 @@ Configure multiple repositories in a single file:
 
 ```properties
 # Shibboleth repository
-repo.shibboleth.allow = org.opensaml,net.shibboleth
+repo.shibboleth.allow = org.opensaml*,net.shibboleth*
 repo.shibboleth.deny = *.internal*
 
 # Maven Central
-repo.central.allow = org.graylog,org.apache.maven
+repo.central.allow = org.graylog*,org.apache.maven*
 
 # Company internal repository
-repo.company-nexus.allow = com.company,com.company.internal
+repo.company-nexus.allow = com.company*,com.company.internal*
 ```
 
 ### Example 4: Glob Pattern Wildcards
@@ -238,7 +240,7 @@ repo.company.deny = *-SNAPSHOT
 Restrict specific artifacts using full coordinates:
 
 ```properties
-# Allow only specific Google artifacts
+# Allow only specific Google artifacts (exact match)
 repo.central.allow = com.google:guava,com.google:gson
 
 # Allow all OpenSAML artifacts
@@ -252,7 +254,7 @@ repo.central.allow = org.apache.commons:*
 repo.central.deny = org.apache.commons:commons-io
 
 # Mix groupId and coordinate patterns
-repo.central.allow = org.graylog,com.opensaml:*,com.google:guava
+repo.central.allow = org.graylog*,com.opensaml:*,com.google:guava
 ```
 
 ### Example 6: Custom Config Directory
@@ -308,7 +310,7 @@ mvn test
 The test suite includes:
 - Configuration loading from files
 - Empty/missing configuration handling
-- Artifact filtering with prefix matching
+- Artifact filtering with exact and wildcard matching
 - Metadata filtering
 - Relative and absolute path resolution
 - Multiple repository configurations
