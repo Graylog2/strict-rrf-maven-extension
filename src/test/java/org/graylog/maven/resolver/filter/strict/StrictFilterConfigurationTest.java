@@ -17,6 +17,13 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class StrictFilterConfigurationTest {
 
+    /**
+     * Helper method to write strict.properties configuration file.
+     */
+    private void writeStrictProperties(Path tempDir, String content) throws Exception {
+        Files.writeString(tempDir.resolve("strict.properties"), content);
+    }
+
     @Test
     void testEmptyConfiguration(@TempDir Path tempDir) {
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
@@ -42,14 +49,12 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testLoadConfiguration(@TempDir Path tempDir) throws Exception {
-        // Create config file with repository rules
-        final Path configFile = tempDir.resolve("strict.properties");
-        Files.writeString(configFile,
-                "# Comment line\n" +
-                        "repo.central.allow = org.graylog,org.apache.commons,org.springframework\n" +
-                        "\n" +
-                        "# Another comment\n"
-        );
+        writeStrictProperties(tempDir, """
+                # Comment line
+                repo.central.allow = org.graylog,org.apache.commons,org.springframework
+
+                # Another comment
+                """);
 
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
                 tempDir.toString(),
@@ -61,13 +66,11 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testMultipleRepositories(@TempDir Path tempDir) throws Exception {
-        // Create config file with rules for multiple repositories
-        final Path configFile = tempDir.resolve("strict.properties");
-        Files.writeString(configFile,
-                "repo.central.allow = org.graylog\n" +
-                        "repo.company-repo.allow = com.company\n" +
-                        "repo.shibboleth.allow = org.opensaml,net.shibboleth\n"
-        );
+        writeStrictProperties(tempDir, """
+                repo.central.allow = org.graylog
+                repo.company-repo.allow = com.company
+                repo.shibboleth.allow = org.opensaml,net.shibboleth
+                """);
 
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
                 tempDir.toString(),
@@ -79,9 +82,7 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testArtifactAllowed(@TempDir Path tempDir) throws Exception {
-        // Create config file
-        final Path configFile = tempDir.resolve("strict.properties");
-        Files.writeString(configFile, "repo.central.allow = org.graylog,org.apache.commons\n");
+        writeStrictProperties(tempDir, "repo.central.allow = org.graylog,org.apache.commons\n");
 
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
                 tempDir.toString(),
@@ -119,8 +120,7 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testMetadataAllowed(@TempDir Path tempDir) throws Exception {
-        final Path configFile = tempDir.resolve("strict.properties");
-        Files.writeString(configFile, "repo.central.allow = org.graylog\n");
+        writeStrictProperties(tempDir, "repo.central.allow = org.graylog\n");
 
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
                 tempDir.toString(),
@@ -163,8 +163,7 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testAbsoluteBasedir(@TempDir Path tempDir) throws Exception {
-        final Path configFile = tempDir.resolve("strict.properties");
-        Files.writeString(configFile, "repo.central.allow = org.graylog\n");
+        writeStrictProperties(tempDir, "repo.central.allow = org.graylog\n");
 
         // Load with absolute path
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
@@ -178,7 +177,7 @@ class StrictFilterConfigurationTest {
     @Test
     void testIgnoreNonConfigFiles(@TempDir Path tempDir) throws Exception {
         // Create various files, only strict.properties should be loaded
-        Files.writeString(tempDir.resolve("strict.properties"), "repo.central.allow = org.graylog\n");
+        writeStrictProperties(tempDir, "repo.central.allow = org.graylog\n");
         Files.writeString(tempDir.resolve("README.md"), "This is a readme\n");
         Files.writeString(tempDir.resolve("config.txt"), "not a strict config\n");
         Files.writeString(tempDir.resolve("strict-backup.bak"), "backup file\n");
@@ -193,9 +192,7 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testEmptyConfigFile(@TempDir Path tempDir) throws Exception {
-        // Create an empty config file
-        final Path configFile = tempDir.resolve("strict.properties");
-        Files.writeString(configFile, "");
+        writeStrictProperties(tempDir, "");
 
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
                 tempDir.toString(),
@@ -208,13 +205,12 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testConfigFileWithOnlyComments(@TempDir Path tempDir) throws Exception {
-        final Path configFile = tempDir.resolve("strict.properties");
-        Files.writeString(configFile,
-                "# This is a comment\n" +
-                        "# Another comment\n" +
-                        "\n" +
-                        "   \n"
-        );
+        writeStrictProperties(tempDir, """
+                # This is a comment
+                # Another comment
+
+
+                """);
 
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
                 tempDir.toString(),
@@ -226,18 +222,17 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testAllowDenyFormat(@TempDir Path tempDir) throws Exception {
-        final Path configFile = tempDir.resolve("strict.properties");
-        Files.writeString(configFile,
-                "# Shibboleth repository\n" +
-                        "repo.shibboleth.allow = org.opensaml,net.shibboleth\n" +
-                        "repo.shibboleth.deny = org.opensaml.internal*\n" +
-                        "\n" +
-                        "# Maven Central - multiple groupIds\n" +
-                        "repo.central.allow = org.graylog,org.apache.maven,org.springframework\n" +
-                        "\n" +
-                        "# Company repo - single groupId\n" +
-                        "repo.company.allow = com.company\n"
-        );
+        writeStrictProperties(tempDir, """
+                # Shibboleth repository
+                repo.shibboleth.allow = org.opensaml,net.shibboleth
+                repo.shibboleth.deny = org.opensaml.internal*
+
+                # Maven Central - multiple groupIds
+                repo.central.allow = org.graylog,org.apache.maven,org.springframework
+
+                # Company repo - single groupId
+                repo.company.allow = com.company
+                """);
 
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
                 tempDir.toString(),
@@ -269,11 +264,10 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testGlobPatterns(@TempDir Path tempDir) throws Exception {
-        final Path configFile = tempDir.resolve("strict.properties");
-        Files.writeString(configFile,
-                "repo.test.allow = com.google,com.foo*\n" +
-                        "repo.test.deny = com.google.internal.*\n"
-        );
+        writeStrictProperties(tempDir, """
+                repo.test.allow = com.google,com.foo*
+                repo.test.deny = com.google.internal.*
+                """);
 
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
                 tempDir.toString(),
@@ -312,11 +306,10 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testDefaultDenyAll(@TempDir Path tempDir) throws Exception {
-        final Path configFile = tempDir.resolve("strict.properties");
-        Files.writeString(configFile,
-                "# Only allow specific artifacts\n" +
-                        "repo.strict.allow = org.graylog\n"
-        );
+        writeStrictProperties(tempDir, """
+                # Only allow specific artifacts
+                repo.strict.allow = org.graylog
+                """);
 
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
                 tempDir.toString(),
@@ -340,19 +333,18 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testInvalidPropertyLines(@TempDir Path tempDir) throws Exception {
-        final Path configFile = tempDir.resolve("strict.properties");
-        Files.writeString(configFile,
-                "# Valid line\n" +
-                        "repo.central.allow = org.graylog\n" +
-                        "\n" +
-                        "# Invalid lines that should be skipped\n" +
-                        "repo.invalid = org.apache\n" +  // Missing .allow/.deny
-                        "notrepo.something.allow = org.apache\n" +  // Missing repo. prefix
-                        "repo..allow = org.empty\n" +  // Empty repo ID
-                        "\n" +
-                        "# Another valid line\n" +
-                        "repo.company.allow = com.company\n"
-        );
+        writeStrictProperties(tempDir, """
+                # Valid line
+                repo.central.allow = org.graylog
+
+                # Invalid lines that should be skipped
+                repo.invalid = org.apache
+                notrepo.something.allow = org.apache
+                repo..allow = org.empty
+
+                # Another valid line
+                repo.company.allow = com.company
+                """);
 
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
                 tempDir.toString(),
@@ -373,11 +365,10 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testWhitespaceHandling(@TempDir Path tempDir) throws Exception {
-        final Path configFile = tempDir.resolve("strict.properties");
-        Files.writeString(configFile,
-                "  repo.central.allow   =   org.graylog  ,  org.apache.commons  \n" +
-                        "repo.company.allow=com.company,   com.other   \n"
-        );
+        writeStrictProperties(tempDir, """
+                  repo.central.allow   =   org.graylog  ,  org.apache.commons
+                repo.company.allow=com.company,   com.other
+                """);
 
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
                 tempDir.toString(),
@@ -397,13 +388,12 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testArtifactCoordinatePatterns(@TempDir Path tempDir) throws Exception {
-        final Path configFile = tempDir.resolve("strict.properties");
-        Files.writeString(configFile,
-                "# Allow all artifacts from com.opensaml\n" +
-                        "repo.test.allow = com.opensaml:*\n" +
-                        "# Allow only test-* artifacts from com.foobar\n" +
-                        "repo.test2.allow = com.foobar:test-*\n"
-        );
+        writeStrictProperties(tempDir, """
+                # Allow all artifacts from com.opensaml
+                repo.test.allow = com.opensaml:*
+                # Allow only test-* artifacts from com.foobar
+                repo.test2.allow = com.foobar:test-*
+                """);
 
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
                 tempDir.toString(),
@@ -441,11 +431,10 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testMixedGroupIdAndCoordinatePatterns(@TempDir Path tempDir) throws Exception {
-        final Path configFile = tempDir.resolve("strict.properties");
-        Files.writeString(configFile,
-                "# Mix groupId-only and coordinate patterns\n" +
-                        "repo.mixed.allow = org.graylog,com.opensaml:*,com.test:lib-*\n"
-        );
+        writeStrictProperties(tempDir, """
+                # Mix groupId-only and coordinate patterns
+                repo.mixed.allow = org.graylog,com.opensaml:*,com.test:lib-*
+                """);
 
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
                 tempDir.toString(),
@@ -483,12 +472,11 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testCoordinateDenyPatterns(@TempDir Path tempDir) throws Exception {
-        final Path configFile = tempDir.resolve("strict.properties");
-        Files.writeString(configFile,
-                "# Allow all from com.opensaml, but deny internal artifacts\n" +
-                        "repo.test.allow = com.opensaml:*\n" +
-                        "repo.test.deny = com.opensaml:*-internal\n"
-        );
+        writeStrictProperties(tempDir, """
+                # Allow all from com.opensaml, but deny internal artifacts
+                repo.test.allow = com.opensaml:*
+                repo.test.deny = com.opensaml:*-internal
+                """);
 
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
                 tempDir.toString(),
@@ -512,11 +500,10 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testExactArtifactIdMatch(@TempDir Path tempDir) throws Exception {
-        final Path configFile = tempDir.resolve("strict.properties");
-        Files.writeString(configFile,
-                "# Allow only specific artifacts\n" +
-                        "repo.test.allow = com.google:guava,com.google:gson\n"
-        );
+        writeStrictProperties(tempDir, """
+                # Allow only specific artifacts
+                repo.test.allow = com.google:guava,com.google:gson
+                """);
 
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
                 tempDir.toString(),
@@ -541,11 +528,10 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testCoordinatePatternBackwardCompatibility(@TempDir Path tempDir) throws Exception {
-        final Path configFile = tempDir.resolve("strict.properties");
-        Files.writeString(configFile,
-                "# Legacy groupId-only pattern should still work\n" +
-                        "repo.test.allow = org.graylog,org.apache.commons\n"
-        );
+        writeStrictProperties(tempDir, """
+                # Legacy groupId-only pattern should still work
+                repo.test.allow = org.graylog,org.apache.commons
+                """);
 
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
                 tempDir.toString(),
@@ -568,13 +554,12 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testRepositoryNamesWithDots(@TempDir Path tempDir) throws Exception {
-        final Path configFile = tempDir.resolve("strict.properties");
-        Files.writeString(configFile,
-                "# Repository names can contain dots\n" +
-                        "repo.apache.snapshots.allow = org.apache\n" +
-                        "repo.spring.milestone.allow = org.springframework\n" +
-                        "repo.company.internal.releases.allow = com.company\n"
-        );
+        writeStrictProperties(tempDir, """
+                # Repository names can contain dots
+                repo.apache.snapshots.allow = org.apache
+                repo.spring.milestone.allow = org.springframework
+                repo.company.internal.releases.allow = com.company
+                """);
 
         StrictFilterConfiguration config = StrictFilterConfiguration.load(
                 tempDir.toString(),
@@ -599,10 +584,10 @@ class StrictFilterConfigurationTest {
                 "Should work with repository name containing multiple dots");
 
         // Test that deny still works
-        Files.writeString(configFile,
-                "repo.apache.snapshots.allow = org.apache\n" +
-                        "repo.apache.snapshots.deny = org.apache.internal*\n"
-        );
+        writeStrictProperties(tempDir, """
+                repo.apache.snapshots.allow = org.apache
+                repo.apache.snapshots.deny = org.apache.internal*
+                """);
 
         config = StrictFilterConfiguration.load(tempDir.toString(), tempDir);
 
