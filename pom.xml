@@ -10,7 +10,30 @@
     <packaging>jar</packaging>
 
     <name>Strict Remote Repository Filter Maven Extension</name>
-    <description>A skeleton Maven extension for remote repository filtering</description>
+    <description>
+        A Maven extension that implements the Maven Resolver Remote Repository Filter SPI.
+        This extension provides properties-based configuration for filtering artifacts and metadata from remote Maven repositories.
+    </description>
+
+    <licenses>
+        <license>
+            <name>Apache 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <scm>
+        <developerConnection>scm:git:git@github.com:graylog-labs/strict-rrf-maven-extension.git</developerConnection>
+        <connection>scm:git:github.com/graylog-labs/strict-rrf-maven-extension.git</connection>
+        <url>https://github.com/graylog-labs/strict-rrf-maven-extension</url>
+        <tag>HEAD</tag>
+    </scm>
+
+    <issueManagement>
+        <url>https://github.com/graylog-labs/strict-rrf-maven-extension/issues</url>
+        <system>GitHub Issues</system>
+    </issueManagement>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -104,10 +127,16 @@
                             <goal>enforce</goal>
                         </goals>
                         <configuration>
+                            <fail>true</fail>
+                            <failFast>false</failFast>
                             <rules>
+                                <banDuplicatePomDependencyVersions />
+                                <banDynamicVersions />
+                                <requireJavaVersion>
+                                    <version>11</version>
+                                </requireJavaVersion>
                                 <requireMavenVersion>
-                                    <version>[3.9.0,)</version>
-                                    <message>Maven 3.9.0 or later is required</message>
+                                    <version>[3.9.0,3.99.99]</version>
                                 </requireMavenVersion>
                             </rules>
                         </configuration>
@@ -149,7 +178,25 @@
                 </configuration>
             </plugin>
 
-            <!-- Sisu Maven Plugin - generates JSR-330 component index -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.12.0</version>
+                <configuration>
+                    <show>public</show>
+                    <quiet>true</quiet>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Sisu Maven Plugin - generates JSR-330 component index for Maven extensions -->
             <plugin>
                 <groupId>org.eclipse.sisu</groupId>
                 <artifactId>sisu-maven-plugin</artifactId>
@@ -197,4 +244,41 @@
         </plugins>
     </build>
 
+    <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.2.8</version>
+                        <configuration>
+                            <keyname>B1606F22</keyname>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.9.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <deploymentName>${project.artifactId}-${project.version}</deploymentName>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
