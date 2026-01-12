@@ -10,4 +10,8 @@ updates:
     cooldown:
       default-days: 7
     exclude-paths:
-      - "src/it"
+      - "src/it" # We don't want updates for pom.xml files in our integration tests
+    ignore:
+      - dependency-name: "org.apache.maven.resolver:maven-resolver-spi"
+        versions:
+          - ">= 2" # We target Maven 3.x which uses maven-resolver 1.x
