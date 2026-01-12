@@ -1,0 +1,13 @@
+version: 2
+
+updates:
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "02:00"
+      timezone: "Europe/Berlin"
+    cooldown:
+      default-days: 7
+    exclude-paths:
+      - "src/it"
