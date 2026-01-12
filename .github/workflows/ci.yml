@@ -7,8 +7,8 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
-    name: Test on Java ${{ matrix.java }}
+  unit-tests:
+    name: Unit tests on Java ${{ matrix.java }}
     runs-on: ubuntu-slim
 
     strategy:
@@ -27,7 +27,59 @@ jobs:
           distribution: 'temurin'
 
       - name: Run tests with Maven
-        run: ./mvnw clean install
+        run: ./mvnw clean test
+        env:
+          MAVEN_ARGS: --show-version --batch-mode --fail-fast --no-transfer-progress
+          MAVEN_OPTS: -DtrimStackTrace=false -Djansi.force=true
+
+  generate-matrix:
+    name: "Generate Matrix"
+    runs-on: ubuntu-slim
+
+    outputs:
+      tests: "${{ steps.generate.outputs.tests }}"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: "Generate"
+        id: "generate"
+        run: |
+          paths=()
+
+          for path in src/it/*; do
+            if ! [ -d "$path" ]; then
+              continue
+            fi
+            paths+=("$path")
+          done
+
+          echo "tests=$(jq -cn '$ARGS.positional' --args ${paths[@]})" >> "$GITHUB_OUTPUT"
+
+  integration-tests:
+    name: Integration Test
+    runs-on: ubuntu-slim
+    needs: generate-matrix
+
+    strategy:
+      matrix:
+        java: [ '17', '21', '25' ]
+        tests: ${{ fromJSON(needs.generate-matrix.outputs.tests) }}
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up JDK ${{ matrix.java }}
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ matrix.java }}
+          distribution: 'temurin'
+
+      - name: Run tests with Maven
+        run: ./mvnw clean install -Dinvoker.test=${{ matrix.tests }}
         env:
           MAVEN_ARGS: --show-version --batch-mode --fail-fast --no-transfer-progress
           MAVEN_OPTS: -DtrimStackTrace=false -Djansi.force=true
