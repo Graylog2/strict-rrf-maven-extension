@@ -23,16 +23,6 @@ The filter uses a single `strict.properties` configuration file to define allow 
 
 ## Installation
 
-### 1. Build and Install
-
-```bash
-mvn clean install
-```
-
-This installs the extension to your local Maven repository (`~/.m2/repository`).
-
-### 2. Register in Your Project
-
 Create `.mvn/extensions.xml` in your project root:
 
 ```xml
