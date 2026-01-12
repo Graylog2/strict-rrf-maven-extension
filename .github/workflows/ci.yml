@@ -79,6 +79,10 @@ jobs:
           distribution: 'temurin'
 
       - name: Run tests with Maven
+        # We run each integration test in a separate job to avoid issues
+        # that can show up because all tests use the same local Maven repo.
+        # The Maven invoker plugin doesn't allow a separate local Maven repo
+        # per integration test. (as of January 2026)
         run: ./mvnw clean install -Dinvoker.test=${{ matrix.tests }}
         env:
           MAVEN_ARGS: --show-version --batch-mode --fail-fast --no-transfer-progress
