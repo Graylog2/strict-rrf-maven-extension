@@ -10,7 +10,7 @@
 
     <description>
         Integration test that verifies the filter actually blocks dependencies.
-        This test expects the build to FAIL because commons-io is not in the allow list.
+        This test expects the build to FAIL because com.fasterxml.jackson.core is not in the allow list.
     </description>
 
     <properties>
@@ -19,11 +19,11 @@
     </properties>
 
     <dependencies>
-        <!-- This should be BLOCKED - com.google.guava is not in the allow list -->
+        <!-- This should be BLOCKED - com.fasterxml.jackson.core is not in the allow list -->
         <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>31.0-jre</version>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.15.0</version>
         </dependency>
     </dependencies>
 

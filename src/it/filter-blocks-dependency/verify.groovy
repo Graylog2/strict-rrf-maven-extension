@@ -7,9 +7,9 @@ def logText = buildLog.text
 // Check that the build FAILED (this is expected)
 assert logText.contains("BUILD FAILURE") : "Build should have failed but succeeded"
 
-// Check that the failure was related to dependency resolution for guava
-assert logText.contains("guava") || logText.contains("com.google.guava") :
-    "Build failure should mention guava"
+// Check that the failure was related to dependency resolution for jackson-databind
+assert logText.contains("jackson") || logText.contains("com.fasterxml.jackson") :
+    "Build failure should mention jackson"
 
 // The filter should have rejected the artifact
 // Look for typical Maven resolution failure messages or strict filter rejection
