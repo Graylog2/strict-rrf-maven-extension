@@ -52,7 +52,7 @@ jobs:
             if ! [ -d "$path" ]; then
               continue
             fi
-            paths+=("$path")
+            paths+=("$(basename "$path")")
           done
 
           echo "tests=$(jq -cn '$ARGS.positional' --args ${paths[@]})" >> "$GITHUB_OUTPUT"
