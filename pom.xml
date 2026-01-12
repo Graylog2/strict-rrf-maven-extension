@@ -24,14 +24,14 @@
     </licenses>
 
     <scm>
-        <developerConnection>scm:git:git@github.com:graylog-labs/strict-rrf-maven-extension.git</developerConnection>
-        <connection>scm:git:github.com/graylog-labs/strict-rrf-maven-extension.git</connection>
-        <url>https://github.com/graylog-labs/strict-rrf-maven-extension</url>
+        <developerConnection>scm:git:git@github.com:Graylog2/strict-rrf-maven-extension.git</developerConnection>
+        <connection>scm:git:github.com/Graylog2/strict-rrf-maven-extension.git</connection>
+        <url>https://github.com/Graylog2/strict-rrf-maven-extension</url>
         <tag>HEAD</tag>
     </scm>
 
     <issueManagement>
-        <url>https://github.com/graylog-labs/strict-rrf-maven-extension/issues</url>
+        <url>https://github.com/Graylog2/strict-rrf-maven-extension/issues</url>
         <system>GitHub Issues</system>
     </issueManagement>
 
