@@ -7,9 +7,10 @@ def logText = buildLog.text
 // Check that the build was successful
 assert logText.contains("BUILD SUCCESS") : "Build did not succeed"
 
-// Verify that at least some dependencies were resolved (from allowlist)
-// Dependencies may be cached so they may not show "Downloading", but at least one should appear
-assert logText.contains("commons-io") || logText.contains("junit-jupiter-api") : "At least one allowed dependency should be resolved"
+// Verify that allowed dependencies were resolved
+assert logText.contains("slf4j-api") : "slf4j-api should be allowed and resolved"
+assert logText.contains("junit-jupiter-api") : "junit-jupiter-api should be allowed and resolved"
+assert logText.contains("commons-io") : "commons-io should be allowed and resolved"
 
 println "✓ Allowlist-only configuration test passed"
 return true
