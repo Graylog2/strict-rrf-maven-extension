@@ -14,6 +14,12 @@ Each test is a complete Maven project in its own directory with:
 
 ## Available Tests
 
+**Total Integration Tests: 10**
+- ✅ **4 Basic/Infrastructure Tests** (basic-groupid-allow, coordinate-patterns, filter-disabled, quoted-basedir-path)
+- ✅ **3 Blocking/Policy Tests** (filter-blocks-dependency, metadata-filtering, empty-allow-config)
+- ✅ **2 Advanced Scenarios** (allow-deny-rules, multiple-repositories)
+- ✅ **1 Real-World Policy Test** (allowlist-only-config)
+
 ### 1. basic-groupid-allow
 Tests basic extension loading and groupId-only pattern matching.
 - **Config**: Allows everything (`*`)
@@ -59,6 +65,81 @@ Tests that the filter correctly blocks metadata requests.
 - **Expected**: Build FAILS (metadata blocked, version range cannot be resolved)
 - **Purpose**: Exercises the `acceptMetadata()` code path by using version ranges that force metadata resolution
 - **Note**: `invoker.properties` sets `invoker.buildResult=failure`
+
+### 8. allowlist-only-config
+Tests real-world restrictive allowlist policies.
+- **Config**: Allows only `org.slf4j*,org.junit*,org.opentest4j*,org.apiguardian*,commons-*`
+- **Dependencies**: `slf4j-api`, `junit-jupiter-api`, `commons-io` (all allowlisted)
+- **Expected**: Build succeeds (all dependencies in allowlist)
+- **Purpose**: Validates org-based allowlisting works with transitive dependencies
+- **Use Case**: Real-world restrictive security policy allowing only specific organizations
+
+### 9. multiple-repositories
+Tests multi-repository configurations with different rules.
+- **Config**: Different allow rules for `repo.central` and `repo.company-repo`
+- **Repositories**: Maven Central, simulated company repository
+- **Dependencies**: `slf4j-api` (from central), `commons-io` (available in both)
+- **Expected**: Build succeeds (each repo's rules applied independently)
+- **Purpose**: Ensures different repositories can have different security policies
+
+### 10. empty-allow-config
+Tests fail-secure behavior when configuration allows nothing.
+- **Config**: `repo.central.allow = internal.company.nonexistent.package`
+- **Dependencies**: `slf4j-api:9.9.9-NONEXISTENT` (not in cache, not matching allow list)
+- **Expected**: Build FAILS (artifact blocked by default deny, no matching allow rule)
+- **Purpose**: Validates fail-secure behavior with very restrictive allow lists
+- **Important**: Uses non-existent version to ensure artifact isn't in local cache
+- **Note**: `invoker.properties` sets `invoker.buildResult=failure`
+
+## Test Coverage and Design Rationale
+
+### Coverage Strategy
+
+The integration test suite is organized by testing concern:
+
+1. **Basic Functionality** (infrastructure-focused):
+   - Verify extension loads and parses configuration
+   - Test pattern matching (groupId, coordinates, wildcards)
+   - Handle edge cases (quoted paths, disabled filter)
+
+2. **Security Enforcement** (policy-focused):
+   - Verify filter blocks unauthorized dependencies
+   - Test both metadata and artifact blocking
+   - Validate fail-secure (default deny) behavior
+
+3. **Real-World Scenarios**:
+   - Restrictive allowlist policies (allow-only approach)
+   - Multi-repository configurations (different policies per repo)
+   - Allow/deny rule interactions
+
+### Redundancy Decisions
+
+**Tests with `Allow = *` configuration:**
+- `basic-groupid-allow`, `coordinate-patterns`, `quoted-basedir-path`
+- Rationale: Each tests a distinct edge case or configuration aspect:
+  - `basic-groupid-allow` - Documents minimum test structure
+  - `coordinate-patterns` - Tests multiple dependencies with different patterns
+  - `quoted-basedir-path` - Specifically validates quoted path handling (bug fix regression)
+- Not consolidated because: Each serves as a regression test for a specific code path
+
+### Recent Test Coverage Additions
+
+The following tests were added to close coverage gaps:
+
+**`allowlist-only-config`** - Real-world restrictive policies
+- Documents how to configure secure, allowlist-only allow lists
+- Tests org-based patterns with actual transitive dependencies
+- Previously: No tests with realistic restrictive policies (all used `Allow = *`)
+
+**`multiple-repositories`** - Multi-repository policies
+- Validates that different repositories can have different security rules
+- Tests repository-specific configuration independence
+- Previously: No tests for multi-repository scenarios
+
+**`empty-allow-config`** - Fail-secure validation
+- Explicitly tests default-deny behavior when allow list is restrictive
+- Validates `invoker.buildResult=failure` for expected failures
+- Previously: Covered implicitly in other tests, now explicit
 
 ## Running Integration Tests
 
