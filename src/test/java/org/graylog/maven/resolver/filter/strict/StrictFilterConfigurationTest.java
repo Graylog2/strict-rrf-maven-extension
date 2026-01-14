@@ -20,13 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class StrictFilterConfigurationTest {
 
-    /**
-     * Helper method to write strict.properties configuration file.
-     */
-    private void writeStrictProperties(Path tempDir, String content) throws IOException {
-        Files.writeString(tempDir.resolve("strict.properties"), content);
-    }
-
     @Test
     void testEmptyConfiguration(@TempDir Path tempDir) {
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
@@ -52,7 +45,7 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testLoadConfiguration(@TempDir Path tempDir) throws Exception {
-        writeStrictProperties(tempDir, """
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, """
                 # Comment line
                 repo.central.allow = org.graylog,org.apache.commons,org.springframework
                 
@@ -69,7 +62,7 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testMultipleRepositories(@TempDir Path tempDir) throws Exception {
-        writeStrictProperties(tempDir, """
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, """
                 repo.central.allow = org.graylog
                 repo.company-repo.allow = com.company
                 repo.shibboleth.allow = org.opensaml,net.shibboleth
@@ -85,7 +78,7 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testArtifactAllowed(@TempDir Path tempDir) throws Exception {
-        writeStrictProperties(tempDir, "repo.central.allow = org.graylog*,org.apache.commons*\n");
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, "repo.central.allow = org.graylog*,org.apache.commons*\n");
 
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
                 tempDir.toString(),
@@ -123,7 +116,7 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testMetadataAllowed(@TempDir Path tempDir) throws Exception {
-        writeStrictProperties(tempDir, "repo.central.allow = org.graylog\n");
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, "repo.central.allow = org.graylog\n");
 
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
                 tempDir.toString(),
@@ -166,7 +159,7 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testAbsoluteBasedir(@TempDir Path tempDir) throws Exception {
-        writeStrictProperties(tempDir, "repo.central.allow = org.graylog\n");
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, "repo.central.allow = org.graylog\n");
 
         // Load with absolute path
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
@@ -180,7 +173,7 @@ class StrictFilterConfigurationTest {
     @Test
     void testIgnoreNonConfigFiles(@TempDir Path tempDir) throws Exception {
         // Create various files, only strict.properties should be loaded
-        writeStrictProperties(tempDir, "repo.central.allow = org.graylog\n");
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, "repo.central.allow = org.graylog\n");
         Files.writeString(tempDir.resolve("README.md"), "This is a readme\n");
         Files.writeString(tempDir.resolve("config.txt"), "not a strict config\n");
         Files.writeString(tempDir.resolve("strict-backup.bak"), "backup file\n");
@@ -195,7 +188,7 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testEmptyConfigFile(@TempDir Path tempDir) throws Exception {
-        writeStrictProperties(tempDir, "");
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, "");
 
         final StrictFilterConfiguration config = StrictFilterConfiguration.load(
                 tempDir.toString(),
@@ -208,7 +201,7 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testConfigFileWithOnlyComments(@TempDir Path tempDir) throws Exception {
-        writeStrictProperties(tempDir, """
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, """
                 # This is a comment
                 # Another comment
                 
@@ -225,7 +218,7 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testAllowDenyFormat(@TempDir Path tempDir) throws Exception {
-        writeStrictProperties(tempDir, """
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, """
                 # Shibboleth repository
                 repo.shibboleth.allow = org.opensaml,net.shibboleth
                 repo.shibboleth.deny = org.opensaml.internal*
@@ -267,7 +260,7 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testGlobPatterns(@TempDir Path tempDir) throws Exception {
-        writeStrictProperties(tempDir, """
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, """
                 repo.test.allow = com.google*,com.foo*
                 repo.test.deny = com.google.internal.*
                 """);
@@ -309,7 +302,7 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testDefaultDenyAll(@TempDir Path tempDir) throws Exception {
-        writeStrictProperties(tempDir, """
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, """
                 # Only allow specific artifacts
                 repo.strict.allow = org.graylog
                 """);
@@ -336,7 +329,7 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testInvalidPropertyLines(@TempDir Path tempDir) throws Exception {
-        writeStrictProperties(tempDir, """
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, """
                 # Valid line
                 repo.central.allow = org.graylog
                 
@@ -368,7 +361,7 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testWhitespaceHandling(@TempDir Path tempDir) throws Exception {
-        writeStrictProperties(tempDir, """
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, """
                   repo.central.allow   =   org.graylog  ,  org.apache.commons
                 repo.company.allow=com.company,   com.other
                 """);
@@ -391,7 +384,7 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testArtifactCoordinatePatterns(@TempDir Path tempDir) throws Exception {
-        writeStrictProperties(tempDir, """
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, """
                 # Allow all artifacts from com.opensaml
                 repo.test.allow = com.opensaml:*
                 # Allow only test-* artifacts from com.foobar
@@ -434,7 +427,7 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testMixedGroupIdAndCoordinatePatterns(@TempDir Path tempDir) throws Exception {
-        writeStrictProperties(tempDir, """
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, """
                 # Mix groupId-only and coordinate patterns
                 repo.mixed.allow = org.graylog,com.opensaml:*,com.test:lib-*
                 """);
@@ -476,7 +469,7 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testCoordinateDenyPatterns(@TempDir Path tempDir) throws Exception {
-        writeStrictProperties(tempDir, """
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, """
                 # Allow all from com.opensaml, but deny internal artifacts
                 repo.test.allow = com.opensaml:*
                 repo.test.deny = com.opensaml:*-internal
@@ -504,7 +497,7 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testExactArtifactIdMatch(@TempDir Path tempDir) throws Exception {
-        writeStrictProperties(tempDir, """
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, """
                 # Allow only specific artifacts
                 repo.test.allow = com.google:guava,com.google:gson
                 """);
@@ -532,7 +525,7 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testExactGroupIdMatching(@TempDir Path tempDir) throws Exception {
-        writeStrictProperties(tempDir, """
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, """
                 # Exact groupId matching (no prefix match)
                 repo.test.allow = org.graylog,org.apache.commons
                 """);
@@ -565,7 +558,7 @@ class StrictFilterConfigurationTest {
 
     @Test
     void testRepositoryNamesWithDots(@TempDir Path tempDir) throws Exception {
-        writeStrictProperties(tempDir, """
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, """
                 # Repository names can contain dots
                 repo.apache.snapshots.allow = org.apache
                 repo.spring.milestone.allow = org.springframework
@@ -595,7 +588,7 @@ class StrictFilterConfigurationTest {
                 "Should work with repository name containing multiple dots");
 
         // Test that deny still works
-        writeStrictProperties(tempDir, """
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, """
                 repo.apache.snapshots.allow = org.apache
                 repo.apache.snapshots.deny = org.apache.internal*
                 """);
@@ -609,5 +602,274 @@ class StrictFilterConfigurationTest {
         final Artifact deniedArtifact = new DefaultArtifact("org.apache.internal:test:1.0");
         assertFalse(config.isArtifactAllowed("apache.snapshots", deniedArtifact),
                 "Should deny internal apache artifacts");
+    }
+
+    @Test
+    void testFileSizeValidationExceedsLimit(@TempDir Path tempDir) throws Exception {
+        // Create a file larger than 10MB (MAX_FILE_SIZE)
+        final Path configFile = tempDir.resolve("strict.properties");
+        final int fileSize = 11 * 1024 * 1024; // 11MB
+        final byte[] largeContent = new byte[fileSize];
+        Files.write(configFile, largeContent);
+
+        final StrictFilterConfiguration config = StrictFilterConfiguration.load(
+                tempDir.toString(),
+                tempDir
+        );
+
+        assertTrue(config.isEmpty(),
+                "Configuration should be empty when file exceeds size limit");
+    }
+
+    @Test
+    void testFileSizeValidationAtLimit(@TempDir Path tempDir) throws Exception {
+        // Create a file at exactly 10MB (MAX_FILE_SIZE)
+        final Path configFile = tempDir.resolve("strict.properties");
+
+        // Create a valid properties content that's close to 10MB
+        final int maxFileSize = 10 * 1024 * 1024; // 10MB = 10,485,760 bytes
+        final int targetSize = maxFileSize - 1024; // Just under 10MB
+        final StringBuilder content = new StringBuilder(targetSize);
+        content.append("repo.central.allow = org.graylog\n");
+
+        // Pad with comments to reach near 10MB, ensuring we don't exceed targetSize
+        final String paddingLine = "# This is a comment line to pad the file size\n";
+        while (content.length() + paddingLine.length() <= targetSize) {
+            content.append(paddingLine);
+        }
+
+        // Verify we're under the limit
+        assertTrue(content.length() < maxFileSize,
+                "Content should be under 10MB limit, but was: " + content.length());
+
+        Files.writeString(configFile, content.toString());
+
+        final StrictFilterConfiguration config = StrictFilterConfiguration.load(
+                tempDir.toString(),
+                tempDir
+        );
+
+        // Should load successfully when file is at or under the limit
+        assertFalse(config.isEmpty(),
+                "Configuration should load when file is at size limit");
+    }
+
+    @Test
+    void testMalformedPropertiesFile(@TempDir Path tempDir) throws Exception {
+        // Create a malformed properties file (not valid Java properties format)
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, """
+                This is not a valid properties file
+                It has no key=value pairs
+                Just random text
+                """);
+
+        final StrictFilterConfiguration config = StrictFilterConfiguration.load(
+                tempDir.toString(),
+                tempDir
+        );
+
+        // Should handle gracefully and return empty configuration
+        assertTrue(config.isEmpty(),
+                "Configuration should be empty when properties file is malformed");
+    }
+
+    @Test
+    void testPropertyValueWithOnlyCommas(@TempDir Path tempDir) throws Exception {
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, """
+                repo.central.allow = ,,,
+                """);
+
+        final StrictFilterConfiguration config = StrictFilterConfiguration.load(
+                tempDir.toString(),
+                tempDir
+        );
+
+        // Should result in empty configuration for the repository
+        assertTrue(config.isEmpty(),
+                "Configuration should be empty when property value has only commas");
+    }
+
+    @Test
+    void testPropertyValueWithTrailingComma(@TempDir Path tempDir) throws Exception {
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, """
+                repo.central.allow = org.graylog,org.apache,
+                """);
+
+        final StrictFilterConfiguration config = StrictFilterConfiguration.load(
+                tempDir.toString(),
+                tempDir
+        );
+
+        assertFalse(config.isEmpty(), "Configuration should not be empty");
+
+        // Should properly trim empty strings from trailing comma
+        final Artifact artifact = new DefaultArtifact("org.graylog:server:1.0");
+        assertTrue(config.isArtifactAllowed("central", artifact),
+                "Should handle trailing comma gracefully");
+    }
+
+    @Test
+    void testPropertyValueWithLeadingComma(@TempDir Path tempDir) throws Exception {
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, """
+                repo.central.allow = ,org.graylog,org.apache
+                """);
+
+        final StrictFilterConfiguration config = StrictFilterConfiguration.load(
+                tempDir.toString(),
+                tempDir
+        );
+
+        assertFalse(config.isEmpty(), "Configuration should not be empty");
+
+        // Should properly trim empty strings from leading comma
+        final Artifact artifact = new DefaultArtifact("org.graylog:server:1.0");
+        assertTrue(config.isArtifactAllowed("central", artifact),
+                "Should handle leading comma gracefully");
+    }
+
+    @Test
+    void testPropertyValueWithEmptyStringsBetweenCommas(@TempDir Path tempDir) throws Exception {
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, """
+                repo.central.allow = org.graylog,,org.apache
+                """);
+
+        final StrictFilterConfiguration config = StrictFilterConfiguration.load(
+                tempDir.toString(),
+                tempDir
+        );
+
+        assertFalse(config.isEmpty(), "Configuration should not be empty");
+
+        // Should filter out empty strings
+        final Artifact artifact1 = new DefaultArtifact("org.graylog:server:1.0");
+        assertTrue(config.isArtifactAllowed("central", artifact1),
+                "Should handle empty string between commas");
+
+        final Artifact artifact2 = new DefaultArtifact("org.apache:commons:1.0");
+        assertTrue(config.isArtifactAllowed("central", artifact2),
+                "Should handle empty string between commas");
+    }
+
+    @Test
+    void testMetadataWithNullArtifactId(@TempDir Path tempDir) throws Exception {
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, "repo.central.allow = org.graylog\n");
+
+        final StrictFilterConfiguration config = StrictFilterConfiguration.load(
+                tempDir.toString(),
+                tempDir
+        );
+
+        // Group-level metadata (has groupId but no artifactId)
+        final Metadata metadata = new DefaultMetadata("org.graylog", "maven-metadata.xml",
+                Metadata.Nature.RELEASE_OR_SNAPSHOT);
+
+        assertTrue(config.isMetadataAllowed("central", metadata),
+                "Group-level metadata should be allowed when groupId matches");
+    }
+
+    @Test
+    void testMetadataWithEmptyArtifactId(@TempDir Path tempDir) throws Exception {
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, "repo.central.allow = org.graylog\n");
+
+        final StrictFilterConfiguration config = StrictFilterConfiguration.load(
+                tempDir.toString(),
+                tempDir
+        );
+
+        // Metadata with empty artifactId
+        final Metadata metadata = new DefaultMetadata("org.graylog", "", "maven-metadata.xml",
+                Metadata.Nature.RELEASE_OR_SNAPSHOT);
+
+        assertTrue(config.isMetadataAllowed("central", metadata),
+                "Metadata with empty artifactId should be allowed when groupId matches");
+    }
+
+    @Test
+    void testMetadataWithCoordinatePattern(@TempDir Path tempDir) throws Exception {
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, "repo.central.allow = org.graylog:server\n");
+
+        final StrictFilterConfiguration config = StrictFilterConfiguration.load(
+                tempDir.toString(),
+                tempDir
+        );
+
+        // Artifact-level metadata with both groupId and artifactId
+        final Metadata metadata = new DefaultMetadata("org.graylog", "server", "maven-metadata.xml",
+                Metadata.Nature.RELEASE_OR_SNAPSHOT);
+
+        assertTrue(config.isMetadataAllowed("central", metadata),
+                "Artifact-level metadata should match coordinate pattern");
+    }
+
+    @Test
+    void testPatternWithMultipleDots(@TempDir Path tempDir) throws Exception {
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, "repo.central.allow = com.google.guava*\n");
+
+        final StrictFilterConfiguration config = StrictFilterConfiguration.load(
+                tempDir.toString(),
+                tempDir
+        );
+
+        // Should match groupId starting with com.google.guava
+        final Artifact artifact1 = new DefaultArtifact("com.google.guava:guava:30.0");
+        assertTrue(config.isArtifactAllowed("central", artifact1),
+                "Should match com.google.guava exactly");
+
+        final Artifact artifact2 = new DefaultArtifact("com.google.guava.util:utils:1.0");
+        assertTrue(config.isArtifactAllowed("central", artifact2),
+                "Should match com.google.guava.util (sub-package)");
+
+        // Should NOT match com.google (doesn't start with com.google.guava)
+        final Artifact artifact3 = new DefaultArtifact("com.google:gson:2.8.0");
+        assertFalse(config.isArtifactAllowed("central", artifact3),
+                "Should not match com.google (missing .guava)");
+    }
+
+    @Test
+    void testPatternWithSpecialCharactersInArtifactId(@TempDir Path tempDir) throws Exception {
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, "repo.central.allow = com.test:lib-*\n");
+
+        final StrictFilterConfiguration config = StrictFilterConfiguration.load(
+                tempDir.toString(),
+                tempDir
+        );
+
+        // Hyphen in artifactId pattern
+        final Artifact artifact1 = new DefaultArtifact("com.test:lib-utils:1.0");
+        assertTrue(config.isArtifactAllowed("central", artifact1),
+                "Should match lib-utils with hyphen");
+
+        final Artifact artifact2 = new DefaultArtifact("com.test:lib-core:1.0");
+        assertTrue(config.isArtifactAllowed("central", artifact2),
+                "Should match lib-core with hyphen");
+
+        // Should NOT match without hyphen
+        final Artifact artifact3 = new DefaultArtifact("com.test:libutils:1.0");
+        assertFalse(config.isArtifactAllowed("central", artifact3),
+                "Should not match libutils (missing hyphen)");
+    }
+
+    @Test
+    void testPatternWithNumbers(@TempDir Path tempDir) throws Exception {
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, "repo.central.allow = com.v1*\n");
+
+        final StrictFilterConfiguration config = StrictFilterConfiguration.load(
+                tempDir.toString(),
+                tempDir
+        );
+
+        // Numbers in groupId pattern
+        final Artifact artifact1 = new DefaultArtifact("com.v1:api:1.0");
+        assertTrue(config.isArtifactAllowed("central", artifact1),
+                "Should match com.v1 exactly");
+
+        final Artifact artifact2 = new DefaultArtifact("com.v1.api:core:1.0");
+        assertTrue(config.isArtifactAllowed("central", artifact2),
+                "Should match com.v1.api (sub-package with number)");
+
+        // Should NOT match com.v2
+        final Artifact artifact3 = new DefaultArtifact("com.v2:api:1.0");
+        assertFalse(config.isArtifactAllowed("central", artifact3),
+                "Should not match com.v2 (different number)");
     }
 }
