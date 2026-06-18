@@ -248,6 +248,41 @@ class StrictRemoteRepositoryFilterSourceTest {
     }
 
     @Test
+    void testFilterDisabledOnlyByExplicitFalse(@TempDir Path tempDir) throws Exception {
+        // Fail-secure: any value other than an explicit "false" must keep the filter enabled,
+        // so that a typo or an alternative truthy spelling cannot silently disable it.
+        final Path configDir = tempDir.resolve(".remoteRepositoryFilters");
+        StrictPropertiesTestHelper.writeStrictProperties(configDir, "repo.central.allow = org.graylog\n");
+
+        final StrictRemoteRepositoryFilterSource source = new StrictRemoteRepositoryFilterSource();
+
+        for (final String value : new String[] {"yes", "1", "on", "enabled", "ture", "flase", "", "  "}) {
+            final Map<String, Object> properties = new HashMap<>();
+            properties.put(CONFIG_PROP_ENABLED, value);
+            final RepositorySystemSession session = createSession(properties, tempDir);
+
+            final RemoteRepositoryFilter filter = source.getRemoteRepositoryFilter(session);
+
+            assertNotNull(filter, "Filter must stay enabled for non-\"false\" value: '" + value + "'");
+        }
+    }
+
+    @Test
+    void testFilterDisabledByFalseIgnoresCaseAndWhitespace(@TempDir Path tempDir) {
+        final StrictRemoteRepositoryFilterSource source = new StrictRemoteRepositoryFilterSource();
+
+        for (final String value : new String[] {"false", "FALSE", "False", " false "}) {
+            final Map<String, Object> properties = new HashMap<>();
+            properties.put(CONFIG_PROP_ENABLED, value);
+            final RepositorySystemSession session = createSession(properties, tempDir);
+
+            final RemoteRepositoryFilter filter = source.getRemoteRepositoryFilter(session);
+
+            assertNull(filter, "Filter must be disabled for explicit false value: '" + value + "'");
+        }
+    }
+
+    @Test
     void testFilterWithEmptyConfigurationFailSecure(@TempDir Path tempDir) {
         final StrictRemoteRepositoryFilterSource source = new StrictRemoteRepositoryFilterSource();
 

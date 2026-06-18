@@ -213,6 +213,27 @@ class StrictRemoteRepositoryFilterTest {
     }
 
     @Test
+    void testRejectMetadataWithoutGroupIdForUnconfiguredRepository(@TempDir Path tempDir) throws Exception {
+        StrictPropertiesTestHelper.writeStrictProperties(tempDir, "repo.central.allow = org.graylog\n");
+
+        final StrictFilterConfiguration config = StrictFilterConfiguration.load(
+                tempDir.toString(),
+                tempDir
+        );
+        final StrictRemoteRepositoryFilter filter = new StrictRemoteRepositoryFilter(config);
+
+        // Repository-level metadata (no groupId) from a repository with no configuration must be
+        // rejected (fail-secure) - it should not bypass the filter just because it lacks a groupId.
+        final RemoteRepository repository = createRepository("other-repo");
+        final Metadata metadata = new DefaultMetadata("maven-metadata.xml", Metadata.Nature.RELEASE_OR_SNAPSHOT);
+
+        final RemoteRepositoryFilter.Result result = filter.acceptMetadata(repository, metadata);
+
+        assertFalse(result.isAccepted(),
+                "Repository-level metadata must be rejected for an unconfigured repository (fail-secure)");
+    }
+
+    @Test
     void testReasoningMessageFormat(@TempDir Path tempDir) throws Exception {
         StrictPropertiesTestHelper.writeStrictProperties(tempDir, "repo.central.allow = org.graylog\n");
 

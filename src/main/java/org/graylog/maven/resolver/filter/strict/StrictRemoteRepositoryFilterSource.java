@@ -92,13 +92,19 @@ public class StrictRemoteRepositoryFilterSource implements RemoteRepositoryFilte
      * The filter is enabled by default when the extension is registered.
      * Set the property to "false" to explicitly disable it.
      *
+     * <p><strong>Fail-secure behavior:</strong> the filter is only disabled when the value is
+     * explicitly {@code "false"} (case-insensitive). Any other value &mdash; including typos or
+     * alternative truthy spellings such as {@code "yes"}, {@code "1"} or {@code "on"} &mdash;
+     * leaves the filter <em>enabled</em>. This prevents a malformed property from silently
+     * turning the security control off.
+     *
      * @param session the repository system session
-     * @return true if enabled (default), false if explicitly disabled
+     * @return true if enabled (default), false only if explicitly set to "false"
      */
     private boolean isEnabled(RepositorySystemSession session) {
         final Object value = session.getConfigProperties().get(CONFIG_PROP_ENABLED);
-        // Enabled by default if not specified
-        return value == null || Boolean.parseBoolean(String.valueOf(value));
+        // Enabled by default; only an explicit "false" disables the filter (fail-secure).
+        return value == null || !"false".equalsIgnoreCase(String.valueOf(value).trim());
     }
 
     /**

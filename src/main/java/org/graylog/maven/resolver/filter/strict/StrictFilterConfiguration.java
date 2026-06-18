@@ -49,6 +49,12 @@ import java.util.stream.Collectors;
  *
  * <p>By default, everything is denied unless explicitly allowed.
  * Deny rules override allow rules. Supports glob patterns with * wildcard.
+ *
+ * <p><strong>Caution &mdash; wildcards are greedy across dots:</strong> {@code .} is not treated as
+ * a separator, so {@code *} matches arbitrarily deep. A bare-prefix pattern such as
+ * {@code org.graylog*} also matches adjacent names like {@code org.graylognasty} (a potential
+ * typosquat), and {@code com.*} allows the entire {@code com} namespace. Prefer exact patterns
+ * ({@code org.graylog}) or dot-anchored prefixes ({@code org.graylog.*}) in allow rules.
  */
 public class StrictFilterConfiguration {
 
@@ -256,24 +262,32 @@ public class StrictFilterConfiguration {
      *
      * <p>Uses allow/deny rules with glob pattern matching on groupId and optionally artifactId.
      * Supports both groupId-only patterns and full coordinate patterns.
-     * Metadata without a groupId (repository-level metadata) is always allowed.
+     * Metadata without a groupId (repository-level metadata) is allowed only for repositories
+     * that have an explicit configuration.
      *
      * <p><strong>Fail-secure behavior:</strong> If no configuration exists for a repository,
-     * all metadata is blocked (except repository-level metadata which has no groupId).
+     * all metadata is blocked &mdash; including repository-level metadata that has no groupId.
+     * Repository-level metadata carries no artifact coordinate to match against the rules, so
+     * it is only permitted for repositories the user has explicitly configured.
      *
      * @param repositoryId the repository ID
      * @param metadata     the metadata to check
      * @return true if the metadata is allowed, false otherwise
      */
     public boolean isMetadataAllowed(String repositoryId, Metadata metadata) {
+        final RepositoryRule rule = repositoryRules.get(repositoryId);
+        // No configuration for this repository - deny by default (fail-secure)
+        if (rule == null) {
+            return false;
+        }
+
         final String groupId = metadata.getGroupId();
         if (groupId == null || groupId.isEmpty()) {
-            // Allow metadata without groupId (e.g., repository-level metadata)
+            // Repository-level metadata (no groupId) has no coordinate to match; allow it only
+            // because the repository is explicitly configured (checked above).
             return true;
         }
 
-        final RepositoryRule rule = repositoryRules.get(repositoryId);
-        // No configuration for this repository - deny by default (fail-secure)
-        return rule != null && rule.isMetadataAllowed(metadata);
+        return rule.isMetadataAllowed(metadata);
     }
 }

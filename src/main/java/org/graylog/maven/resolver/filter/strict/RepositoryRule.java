@@ -126,7 +126,19 @@ class RepositoryRule {
     /**
      * Matches a string against a glob pattern using Maven's SelectorUtils.
      * SelectorUtils provides battle-tested glob matching with * wildcard.
-     * Uses . as the path separator to match Maven groupId/artifactId structure.
+     *
+     * <p><strong>Wildcard semantics (important for writing safe rules):</strong> {@code .} is
+     * <em>not</em> a separator here. {@code matchPath} only splits on {@code /} and {@code \},
+     * neither of which appears in a Maven groupId/artifactId, so the whole value is a single
+     * token and {@code *} matches <em>greedily across dots</em>. Concretely:
+     * <ul>
+     * <li>{@code org.graylog*} matches {@code org.graylog}, {@code org.graylog.plugin} <em>and</em>
+     *     adjacent names such as {@code org.graylognasty} (a potential typosquat).</li>
+     * <li>{@code com.*} matches the entire {@code com} namespace at any depth, e.g.
+     *     {@code com.attacker.evil}.</li>
+     * </ul>
+     * Prefer exact patterns ({@code org.graylog}) or dot-anchored prefixes ({@code org.graylog.*})
+     * over bare-prefix wildcards to avoid allowing more coordinates than intended.
      *
      * <p>Note: SelectorUtils is deprecated but still the most reliable option for Maven glob matching.
      * No clear replacement has been provided yet. Alternative (maven-common-artifact-filters) uses
@@ -143,9 +155,8 @@ class RepositoryRule {
             return value.equals(pattern);
         }
 
-        // Use SelectorUtils for glob pattern matching
-        // SelectorUtils.matchPath treats both / and . as path separators
-        // which is perfect for matching Maven coordinates like "com.google.foo"
+        // Use SelectorUtils for glob pattern matching. Because the value contains no path
+        // separator, '*' matches across '.' boundaries (see the wildcard semantics note above).
         return SelectorUtils.matchPath(pattern, value, true);
     }
 }
