@@ -110,6 +110,45 @@ repo.test.allow = org.junit*,com.google:guava,com.google:gson
 - Comments start with `#`
 - Empty lines are ignored
 
+### Repository IDs and Mirrors
+
+The `{repositoryId}` in each rule must be the ID of the repository that Maven **actually
+downloads from** — which is *not* always the ID declared in your POM or in Maven's default
+repositories.
+
+When a mirror is configured in `settings.xml`, Maven replaces the mirrored repository with the
+mirror before any download. The filter therefore sees the **mirror's ID**, not the original one.
+Given this mirror:
+
+```xml
+<mirror>
+  <id>nexus</id>
+  <mirrorOf>*</mirrorOf>
+  <url>https://nexus.internal/repository/maven-public</url>
+</mirror>
+```
+
+rules must be keyed to `nexus`, not `central`:
+
+```properties
+# Correct: the resolver fetches everything through the "nexus" mirror
+repo.nexus.allow = org.graylog*,org.apache.maven*
+
+# Has no effect when the above mirror is active — "central" is never contacted directly
+repo.central.allow = org.graylog*
+```
+
+This is intentional and fail-secure: a mirror is a distinct download source and must be allowed
+explicitly, just like any other repository. If no rule matches the effective repository ID, **all
+artifacts from it are blocked**. A rule written for the wrong ID does not loosen the filter — it
+simply never matches, so the build fails to resolve dependencies rather than fetching them
+insecurely.
+
+**Finding the effective repository ID**: run a build once with the filter disabled
+(`-Daether.remoteRepositoryFilter.strict.enabled=false`) and check which ID artifacts are stored
+under in `~/.m2/repository` (see the `_remote.repositories` marker files), or enable debug logging
+(see [Debugging](#debugging)) and look for the `from repository: <id>` messages.
+
 ### Filtering Logic
 
 The filter works in this order:
