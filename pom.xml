@@ -21,6 +21,19 @@
         </license>
     </licenses>
 
+    <organization>
+        <name>Graylog, Inc.</name>
+        <url>https://www.graylog.org/</url>
+    </organization>
+
+    <developers>
+        <developer>
+            <name>${project.organization.name}</name>
+            <organization>${project.organization.name}</organization>
+            <organizationUrl>${project.organization.url}</organizationUrl>
+        </developer>
+    </developers>
+
     <scm>
         <developerConnection>scm:git:git@github.com:Graylog2/strict-rrf-maven-extension.git</developerConnection>
         <connection>scm:git:github.com/Graylog2/strict-rrf-maven-extension.git</connection>
@@ -186,6 +199,20 @@
                 <executions>
                     <execution>
                         <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.4.0</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
                         <goals>
                             <goal>jar</goal>
                         </goals>
