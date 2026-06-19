@@ -12,6 +12,7 @@
         A Maven extension that implements the Maven Resolver Remote Repository Filter SPI.
         This extension provides properties-based configuration for filtering artifacts and metadata from remote Maven repositories.
     </description>
+    <url>https://github.com/Graylog2/strict-rrf-maven-extension</url>
 
     <licenses>
         <license>
