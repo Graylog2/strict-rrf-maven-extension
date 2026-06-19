@@ -4,7 +4,7 @@
 
     <groupId>org.graylog.maven</groupId>
     <artifactId>strict-rrf-maven-extension</artifactId>
-    <version>0.1.1-SNAPSHOT</version>
+    <version>0.1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>Strict Remote Repository Filter Maven Extension</name>
