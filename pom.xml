@@ -200,6 +200,7 @@
                 <configuration>
                     <tagNameFormat>v@{project.version}</tagNameFormat>
                     <releaseProfiles>release</releaseProfiles>
+                    <preparationGoals>clean package</preparationGoals>
                 </configuration>
             </plugin>
 
