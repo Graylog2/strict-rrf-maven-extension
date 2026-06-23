@@ -13,6 +13,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -85,6 +86,37 @@ public class StrictFilterConfiguration {
         final Path configFile = basedir.resolve(CONFIG_FILE_NAME);
 
         return new StrictFilterConfiguration(basedir, loadPropertiesFile(configFile));
+    }
+
+    /**
+     * Loads configuration from the first candidate directory that contains a
+     * {@code strict.properties} file.
+     *
+     * <p>Candidates are checked in order. The first directory whose
+     * {@code strict.properties} file exists is selected and loaded &mdash; a present
+     * file is authoritative even when empty (fail-secure). If no candidate contains a
+     * config file, the <strong>last</strong> candidate is used as the reported base
+     * directory so that the resulting (empty) configuration points at a sensible
+     * fallback location.
+     *
+     * @param candidateDirs the candidate directories, in priority order (must not be empty)
+     * @return a configuration instance loaded from the selected directory
+     * @throws IllegalArgumentException if {@code candidateDirs} is empty
+     */
+    public static StrictFilterConfiguration loadFromCandidates(List<Path> candidateDirs) {
+        if (candidateDirs.isEmpty()) {
+            throw new IllegalArgumentException("candidateDirs must not be empty");
+        }
+
+        Path selected = candidateDirs.get(candidateDirs.size() - 1);
+        for (final Path dir : candidateDirs) {
+            if (Files.exists(dir.resolve(CONFIG_FILE_NAME))) {
+                selected = dir;
+                break;
+            }
+        }
+
+        return new StrictFilterConfiguration(selected, loadPropertiesFile(selected.resolve(CONFIG_FILE_NAME)));
     }
 
     private static Map<String, RepositoryRule> loadPropertiesFile(Path file) {

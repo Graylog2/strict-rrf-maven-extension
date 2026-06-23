@@ -9,9 +9,11 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -870,5 +872,60 @@ class StrictFilterConfigurationTest {
         final Artifact artifact3 = new DefaultArtifact("com.v2:api:1.0");
         assertFalse(config.isArtifactAllowed("central", artifact3),
                 "Should not match com.v2 (different number)");
+    }
+
+    @Test
+    void testCandidateListPrefersFirstExisting(@TempDir Path tempDir) throws Exception {
+        final Path first = tempDir.resolve("first");
+        final Path second = tempDir.resolve("second");
+        StrictPropertiesTestHelper.writeStrictProperties(first, "repo.central.allow = org.first\n");
+        StrictPropertiesTestHelper.writeStrictProperties(second, "repo.central.allow = org.second\n");
+
+        final StrictFilterConfiguration config = StrictFilterConfiguration.loadFromCandidates(List.of(first, second));
+
+        assertEquals(first, config.getBasedir(), "First existing candidate should be selected");
+        assertFalse(config.isEmpty(), "Configuration should not be empty");
+    }
+
+    @Test
+    void testCandidateListFallsBackToLaterCandidate(@TempDir Path tempDir) throws Exception {
+        final Path first = tempDir.resolve("first");   // no strict.properties created here
+        final Path second = tempDir.resolve("second");
+        StrictPropertiesTestHelper.writeStrictProperties(second, "repo.central.allow = org.second\n");
+
+        final StrictFilterConfiguration config = StrictFilterConfiguration.loadFromCandidates(List.of(first, second));
+
+        assertEquals(second, config.getBasedir(), "Should fall back to the candidate that has a config file");
+        assertFalse(config.isEmpty(), "Configuration should not be empty");
+    }
+
+    @Test
+    void testCandidateListNoneExistReportsLast(@TempDir Path tempDir) {
+        final Path first = tempDir.resolve("first");
+        final Path second = tempDir.resolve("second");
+
+        final StrictFilterConfiguration config = StrictFilterConfiguration.loadFromCandidates(List.of(first, second));
+
+        assertTrue(config.isEmpty(), "Configuration should be empty when no candidate has a config file");
+        assertEquals(second, config.getBasedir(), "Should report the last candidate when none exist (fail-secure default)");
+    }
+
+    @Test
+    void testCandidatePresentButEmptyFileIsAuthoritative(@TempDir Path tempDir) throws Exception {
+        final Path first = tempDir.resolve("first");
+        final Path second = tempDir.resolve("second");
+        StrictPropertiesTestHelper.writeStrictProperties(first, "# no rules here\n");        // exists but empty
+        StrictPropertiesTestHelper.writeStrictProperties(second, "repo.central.allow = org.second\n");
+
+        final StrictFilterConfiguration config = StrictFilterConfiguration.loadFromCandidates(List.of(first, second));
+
+        assertEquals(first, config.getBasedir(), "A present (even empty) file is authoritative; no fallback");
+        assertTrue(config.isEmpty(), "Empty project file yields no rules (fail-secure)");
+    }
+
+    @Test
+    void testCandidateListEmptyThrows() {
+        assertThrows(IllegalArgumentException.class, () -> StrictFilterConfiguration.loadFromCandidates(List.of()),
+                "Empty candidate list must be rejected");
     }
 }
