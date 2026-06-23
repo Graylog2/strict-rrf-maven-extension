@@ -67,13 +67,19 @@ A single configuration file named `strict.properties` should be placed in the fi
 
 **Default location**: `~/.m2/repository/.remoteRepositoryFilters/strict.properties` (global configuration in local repository)
 
-**Project-specific location (recommended)**: To use project-specific configuration in Maven 3.9+, add this to `.mvn/maven.config`:
-```
--Daether.remoteRepositoryFilter.strict.basedir=${session.rootDirectory}/.mvn/remoteRepositoryFilters
-```
-Then create `.mvn/remoteRepositoryFilters/strict.properties` in your project root.
+**Project-specific location (recommended)**: Place `strict.properties` in your project's
+`.mvn/remoteRepositoryFilters/` directory. It is discovered automatically — no `.mvn/maven.config`
+or `basedir` property is required.
 
-**Important Note for Maven 3.9.x**: The `${session.rootDirectory}` variable is only available for interpolation in `.mvn/maven.config` and command-line arguments, not as a runtime property. Maven 4.0+ will support it as a full property.
+**Lookup order** (when `basedir` is not set, first match wins):
+
+1. `<projectRoot>/.mvn/remoteRepositoryFilters/strict.properties` — project-local config
+   (`<projectRoot>` is the directory containing the topmost `.mvn`). A present file is authoritative
+   even when empty (fail-secure).
+2. `~/.m2/repository/.remoteRepositoryFilters/strict.properties` — global config in the local repository.
+
+Setting `-Daether.remoteRepositoryFilter.strict.basedir=<dir>` explicitly bypasses this lookup and
+uses `<dir>` as the single configuration location.
 
 ### File Format
 
@@ -213,12 +219,7 @@ mvn clean compile
 
 Only artifacts from the allowed groupIds and their sub-packages will be fetched from Maven Central. Everything else is denied by default.
 
-**For project-specific configuration**, add to `.mvn/maven.config`:
-```
--Daether.remoteRepositoryFilter.strict.basedir=${session.rootDirectory}/.mvn/remoteRepositoryFilters
-```
-
-Then create `.mvn/remoteRepositoryFilters/strict.properties` in your project root with the same content.
+**For project-specific configuration**, simply create `.mvn/remoteRepositoryFilters/strict.properties` in your project root with the same content. It is discovered automatically — no `.mvn/maven.config` or `basedir` property is required. (See the "Configuration File" section above for the full lookup order.)
 
 ### Example 2: Allow with Deny Overrides
 
