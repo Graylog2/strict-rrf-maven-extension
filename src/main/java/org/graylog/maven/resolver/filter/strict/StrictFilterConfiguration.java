@@ -187,10 +187,10 @@ public class StrictFilterConfiguration {
             if (!patterns.isEmpty()) {
                 if (isAllow) {
                     allowPatterns.computeIfAbsent(repoId, k -> new HashSet<>()).addAll(patterns);
-                    logger.info("Loaded {} allow patterns for repository '{}': {}", patterns.size(), repoId, patterns);
+                    logger.debug("Loaded {} allow patterns for repository '{}': {}", patterns.size(), repoId, patterns);
                 } else {
                     denyPatterns.computeIfAbsent(repoId, k -> new HashSet<>()).addAll(patterns);
-                    logger.info("Loaded {} deny patterns for repository '{}': {}", patterns.size(), repoId, patterns);
+                    logger.debug("Loaded {} deny patterns for repository '{}': {}", patterns.size(), repoId, patterns);
                 }
             }
         }
@@ -206,7 +206,7 @@ public class StrictFilterConfiguration {
             final Set<String> deny = denyPatterns.getOrDefault(repoId, Set.of());
 
             repositoryRules.put(repoId, new RepositoryRule(allow, deny));
-            logger.info("Created rule for repository '{}': {} allow patterns, {} deny patterns",
+            logger.debug("Created rule for repository '{}': {} allow patterns, {} deny patterns",
                     repoId, allow.size(), deny.size());
         }
 
