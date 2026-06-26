@@ -31,7 +31,7 @@ Create `.mvn/extensions.xml` in your project root:
     <extension>
         <groupId>org.graylog.maven</groupId>
         <artifactId>strict-rrf-maven-extension</artifactId>
-        <version>0.2.0</version>
+        <version>0.3.0</version>
     </extension>
 </extensions>
 ```
