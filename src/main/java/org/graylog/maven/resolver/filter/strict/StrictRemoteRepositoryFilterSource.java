@@ -93,7 +93,7 @@ public class StrictRemoteRepositoryFilterSource implements RemoteRepositoryFilte
                     config.getBasedir());
             logger.warn("Create strict.properties file with allow rules to permit artifacts");
         } else {
-            logger.info("Strict filter is active with configuration from: {}", config.getBasedir());
+            logger.debug("Strict filter is active with configuration from: {}", config.getBasedir());
         }
 
         return new StrictRemoteRepositoryFilter(config);
