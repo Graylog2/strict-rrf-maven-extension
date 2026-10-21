@@ -59,7 +59,7 @@ Or configure in `.mvn/maven.config`:
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `aether.remoteRepositoryFilter.strict.enabled` | boolean | **true** | Enable/disable the filter globally |
-| `aether.remoteRepositoryFilter.strict.basedir` | string | `.remoteRepositoryFilters` | Base directory for config files (relative to local repository: `~/.m2/repository/.remoteRepositoryFilters`) |
+| `aether.remoteRepositoryFilter.strict.basedir` | string | *(unset)* | Explicit config directory; relative paths resolve against the local repository. When unset, the project-local and global locations are looked up (see [Configuration File](#configuration-file)) |
 
 ### Configuration File
 
@@ -364,12 +364,13 @@ or oversized files, duplicate keys and invalid patterns all block artifacts rath
 
 ## Architecture
 
-The extension consists of 4 main classes:
+The extension consists of 5 main classes:
 
-1. **StrictRemoteRepositoryFilterSource** - SPI entry point with `@Named("strict")` annotation
+1. **StrictRemoteRepositoryFilterSource** - SPI entry point with `@Named("strict")` annotation; locates the configuration
 2. **StrictRemoteRepositoryFilter** - Implements the filtering logic
-3. **StrictFilterConfiguration** - Loads and provides configuration
-4. **SimpleFilterResult** - Result object for filter decisions
+3. **StrictFilterConfiguration** - Loads and validates the configuration
+4. **RepositoryRule** - Allow/deny patterns and glob matching for one repository
+5. **SimpleFilterResult** - Result object for filter decisions
 
 Maven discovers the extension via Sisu/JSR-330 dependency injection. The `@Named("strict")` annotation makes "strict" the filter identifier used in system properties.
 
@@ -381,12 +382,19 @@ Run unit tests:
 mvn test
 ```
 
+Run unit and integration tests (see [`src/it/README.md`](src/it/README.md)):
+
+```bash
+mvn verify
+```
+
 The test suite includes:
-- Configuration loading from files
+- Configuration loading, including project-local and global lookup
 - Empty/missing configuration handling
+- Validation of duplicate keys and invalid patterns (fail-secure blocking)
 - Artifact filtering with exact and wildcard matching
 - Metadata filtering
-- Relative and absolute path resolution
+- Relative, absolute and quoted path resolution
 - Multiple repository configurations
 
 ## Debugging
