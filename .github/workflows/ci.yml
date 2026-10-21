@@ -61,10 +61,13 @@ jobs:
     name: Integration Test
     runs-on: ubuntu-slim
     needs: generate-matrix
+    # Maven 3.10 is known to be incompatible. Report failures without failing the workflow.
+    continue-on-error: ${{ startsWith(matrix.maven, '3.10') }}
 
     strategy:
       matrix:
         java: [ '17', '21', '25' ]
+        maven: [ '3.9.16', '3.10.0' ]
         tests: ${{ fromJSON(needs.generate-matrix.outputs.tests) }}
       fail-fast: false
 
@@ -77,6 +80,12 @@ jobs:
         with:
           java-version: ${{ matrix.java }}
           distribution: 'temurin'
+
+      - name: Use Maven ${{ matrix.maven }}
+        # The invoker plugin runs the integration tests with the Maven version that runs the build.
+        run: |
+          sed -i -E "s|^distributionUrl=.*|distributionUrl=https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/${{ matrix.maven }}/apache-maven-${{ matrix.maven }}-bin.zip|" \
+            .mvn/wrapper/maven-wrapper.properties
 
       - name: Run tests with Maven
         # We run each integration test in a separate job to avoid issues
