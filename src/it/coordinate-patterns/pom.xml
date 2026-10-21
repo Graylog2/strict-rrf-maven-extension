@@ -42,6 +42,14 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
             </plugin>
+            <plugin>
+                <!-- Pinned so every Maven version resolves the same plugin dependencies. Maven 3.10 no longer
+                     pins this plugin and would resolve the latest release, which needs artifacts outside
+                     the test allowlists. -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.7.0</version>
+            </plugin>
         </plugins>
     </build>
 </project>
