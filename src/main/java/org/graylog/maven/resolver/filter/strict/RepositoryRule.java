@@ -1,5 +1,6 @@
 package org.graylog.maven.resolver.filter.strict;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.maven.shared.utils.io.SelectorUtils;
 import org.eclipse.aether.artifact.Artifact;
 import org.eclipse.aether.metadata.Metadata;
@@ -20,11 +21,16 @@ class RepositoryRule {
     }
 
     boolean isArtifactAllowed(Artifact artifact) {
-        return isAllowed(artifact.getGroupId(), artifact.getArtifactId(), RepositoryRule::matchesPattern);
+        // Without both coordinates a deny pattern could fail to match; deny instead (fail-secure)
+        return StringUtils.isNotEmpty(artifact.getGroupId())
+                && StringUtils.isNotEmpty(artifact.getArtifactId())
+                && isAllowed(artifact.getGroupId(), artifact.getArtifactId(), RepositoryRule::matchesPattern);
     }
 
     boolean isMetadataAllowed(Metadata metadata) {
-        return isAllowed(metadata.getGroupId(), metadata.getArtifactId(), RepositoryRule::matchesMetadataPattern);
+        // Repository-level metadata (no groupId) is handled by the caller; never match it here
+        return StringUtils.isNotEmpty(metadata.getGroupId())
+                && isAllowed(metadata.getGroupId(), metadata.getArtifactId(), RepositoryRule::matchesMetadataPattern);
     }
 
     /**
@@ -65,7 +71,7 @@ class RepositoryRule {
      */
     private static boolean matchesMetadataPattern(String groupId, String artifactId, String pattern) {
         // Metadata without artifactId should only match the groupId part of coordinate patterns
-        final boolean allowPartialMatch = artifactId == null || artifactId.isEmpty();
+        final boolean allowPartialMatch = StringUtils.isEmpty(artifactId);
         return matchesCoordinatePattern(groupId, artifactId, pattern, allowPartialMatch);
     }
 
@@ -105,7 +111,7 @@ class RepositoryRule {
         // Check if pattern includes artifactId (contains ':')
         if (pattern.contains(":")) {
             // If we allow partial match and artifactId is null, match only groupId
-            if (allowPartialMatch && (artifactId == null || artifactId.isEmpty())) {
+            if (allowPartialMatch && StringUtils.isEmpty(artifactId)) {
                 final String groupIdPattern = pattern.split(":", 2)[0];
                 return matchesGlobPattern(groupId, groupIdPattern);
             }

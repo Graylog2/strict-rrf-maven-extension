@@ -7,16 +7,16 @@ This directory contains integration tests for the Strict Remote Repository Filte
 Each test is a complete Maven project in its own directory with:
 - `pom.xml` - Maven project file with dependencies
 - `.mvn/extensions.xml` - Registers the extension
-- `.mvn/maven.config` - Maven configuration (enables/disables filter)
+- `.mvn/maven.config` (optional) - Maven configuration (e.g. disables the filter or sets an explicit `basedir`)
 - `.mvn/remoteRepositoryFilters/strict.properties` - Filter configuration
 - `verify.groovy` - Post-build verification script
 - `invoker.properties` (optional) - Test-specific settings
 
 ## Available Tests
 
-**Total Integration Tests: 10**
-- ✅ **4 Basic/Infrastructure Tests** (basic-groupid-allow, coordinate-patterns, filter-disabled, quoted-basedir-path)
-- ✅ **3 Blocking/Policy Tests** (filter-blocks-dependency, metadata-filtering, empty-allow-config)
+**Total Integration Tests: 12**
+- ✅ **5 Basic/Infrastructure Tests** (basic-groupid-allow, coordinate-patterns, filter-disabled, quoted-basedir-path, project-local-config)
+- ✅ **4 Blocking/Policy Tests** (filter-blocks-dependency, metadata-filtering, empty-allow-config, invalid-rules-block-repository)
 - ✅ **2 Advanced Scenarios** (allow-deny-rules, multiple-repositories)
 - ✅ **1 Real-World Policy Test** (allowlist-only-config)
 
@@ -89,6 +89,21 @@ Tests fail-secure behavior when configuration allows nothing.
 - **Expected**: Build FAILS (artifact blocked by default deny, no matching allow rule)
 - **Purpose**: Validates fail-secure behavior with very restrictive allow lists
 - **Important**: Uses non-existent version to ensure artifact isn't in local cache
+- **Note**: `invoker.properties` sets `invoker.buildResult=failure`
+
+### 11. project-local-config
+Tests auto-discovery of the project-local configuration.
+- **Config**: `.mvn/remoteRepositoryFilters/strict.properties` allowing everything (`*`), no `.mvn/maven.config`
+- **Dependencies**: Uses `org.slf4j:slf4j-api` (allowed)
+- **Expected**: Build succeeds (configuration found without setting the `basedir` property)
+
+### 12. invalid-rules-block-repository
+Tests that invalid rules block the affected repository instead of being silently ignored.
+- **Config**: `repo.central.allow = *` plus an invalid deny pattern (`com.google.guava:guava:31.0`),
+  and a duplicate `repo.other.allow` key
+- **Dependencies**: `slf4j-api:9.9.9-NONEXISTENT` (allowed by `*`, not in cache)
+- **Expected**: Build FAILS with warnings for both rules; artifacts from central are rejected by the filter
+- **Purpose**: Validates fail-secure validation end to end (a version in a pattern never matched before)
 - **Note**: `invoker.properties` sets `invoker.buildResult=failure`
 
 ## Test Coverage and Design Rationale
@@ -180,7 +195,7 @@ Each `verify.groovy` script:
 1. Create new directory: `src/it/my-new-test/`
 2. Add `pom.xml` with test dependencies
 3. Create `.mvn/extensions.xml` (copy from existing test)
-4. Create `.mvn/maven.config` with filter settings
+4. (Optional) Create `.mvn/maven.config` with filter settings; the project-local config is discovered automatically
 5. Create `.mvn/remoteRepositoryFilters/strict.properties` with filter rules
 6. Add `verify.groovy` to check test results
 7. (Optional) Add `invoker.properties` for special settings

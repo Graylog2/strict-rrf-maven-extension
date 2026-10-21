@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.graylog.maven.test</groupId>
+    <artifactId>invalid-rules-block-repository-test</artifactId>
+    <version>1.0.0-TEST</version>
+
+    <description>
+        Integration test for fail-secure validation of filter rules.
+        An invalid pattern or a duplicate key must block the affected repository
+        (with a warning) instead of being silently ignored.
+    </description>
+
+    <properties>
+        <maven.compiler.release>17</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <!-- Allowed by 'repo.central.allow = *', but central is blocked by the invalid deny rule.
+             Non-existent version so the artifact is never in the local cache. -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>9.9.9-NONEXISTENT</version>
+        </dependency>
+    </dependencies>
+</project>

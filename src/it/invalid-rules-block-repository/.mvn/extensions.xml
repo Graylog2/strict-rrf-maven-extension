@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<extensions>
+    <extension>
+        <groupId>org.graylog.maven</groupId>
+        <artifactId>strict-rrf-maven-extension</artifactId>
+        <version>@project.version@</version>
+    </extension>
+</extensions>
