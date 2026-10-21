@@ -41,7 +41,8 @@ import java.util.stream.Collectors;
  *
  * <p>Pattern matching rules:
  * <ul>
- * <li>GroupId-only: {@code org.graylog} matches {@code org.graylog:*} and {@code org.graylog.plugin:*}</li>
+ * <li>GroupId-only (exact): {@code org.graylog} matches only {@code org.graylog:*}; use
+ *     {@code org.graylog.*} to also match sub-groups such as {@code org.graylog.plugin:*}</li>
  * <li>Wildcard groupId: {@code com.google*} matches {@code com.google:*}, {@code com.googlecode:*}</li>
  * <li>Coordinate with wildcard: {@code com.opensaml:*} matches all artifacts in {@code com.opensaml}</li>
  * <li>Coordinate with pattern: {@code com.company:test-*} matches {@code com.company:test-utils}, etc.</li>
@@ -175,7 +176,8 @@ public class StrictFilterConfiguration {
 
             final String value = properties.getProperty(key);
             if (value == null || value.isBlank()) {
-                logger.debug("Empty value for property '{}', skipping", key);
+                logger.warn("Empty value for property '{}' in {}: skipping. A blank '.deny' rule blocks"
+                        + " nothing; a blank '.allow' rule denies everything for that repository.", key, file);
                 continue;
             }
 

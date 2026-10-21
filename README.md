@@ -163,6 +163,11 @@ The filter works in this order:
 2. **Check Allow**: If artifact matches any `.allow` pattern, proceed to step 3; otherwise deny
 3. **Check Deny**: If artifact matches any `.deny` pattern, deny; otherwise allow
 
+> **Note:** Matching uses the `groupId` and `artifactId` only. The artifact **version is not considered**,
+> so rules cannot allow or deny specific versions of an artifact (e.g. blocking a known-bad version while
+> allowing others). A pattern like `*-SNAPSHOT` matches a *groupId* ending in `-SNAPSHOT` — which never
+> exists — and therefore blocks nothing.
+
 **Pattern Matching**:
 
 Patterns support both groupId-only and full coordinate (groupId:artifactId) patterns:
@@ -198,7 +203,7 @@ Patterns support both groupId-only and full coordinate (groupId:artifactId) patt
 - **Mixed patterns**:
   - You can mix groupId-only and coordinate patterns in the same rule:
   - `repo.test.allow = org.graylog,com.opensaml:*,com.test:lib-*`
-  - This allows: all `org.graylog.*` artifacts, all `com.opensaml` artifacts, and `com.test:lib-*` artifacts
+  - This allows: the exact `org.graylog` groupId (not its sub-groups), all `com.opensaml` artifacts, and `com.test:lib-*` artifacts
 
 ## Usage Examples
 
@@ -262,9 +267,9 @@ repo.central.allow = com.google*
 # But deny test utilities
 repo.central.deny = com.google.*.test*
 
-# Allow anything from company, deny snapshots
+# Allow anything from company, deny an internal sub-group
 repo.company.allow = com.mycompany*
-repo.company.deny = *-SNAPSHOT
+repo.company.deny = com.mycompany.internal*
 ```
 
 ### Example 5: Coordinate-Based Filtering
