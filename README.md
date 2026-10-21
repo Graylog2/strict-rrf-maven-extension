@@ -87,17 +87,17 @@ The properties file defines allow and deny rules per repository:
 
 ```properties
 # Shibboleth repository - allow and deny rules
-repo.shibboleth.allow = org.opensaml*,net.shibboleth*
-repo.shibboleth.deny = org.opensaml.internal*,net.shibboleth.internal*
+repo.shibboleth.allow = org.opensaml,org.opensaml.*,net.shibboleth,net.shibboleth.*
+repo.shibboleth.deny = org.opensaml.internal,org.opensaml.internal.*
 
-# Maven Central - groupId patterns with wildcards
-repo.central.allow = org.graylog*,org.apache.maven*,org.springframework*
+# Maven Central - exact groupIds plus their sub-groups (dot-anchored wildcards)
+repo.central.allow = org.graylog,org.graylog.*,org.apache.maven,org.apache.maven.*
 
 # Company repository - coordinate patterns (groupId:artifactId)
 repo.company.allow = com.company:*,com.other:lib-*
 
 # Mixed patterns - both groupId and coordinate patterns
-repo.test.allow = org.junit*,com.google:guava,com.google:gson
+repo.test.allow = org.junit,org.junit.*,com.google:guava,com.google:gson
 
 # Lines starting with # are comments
 # Empty lines are ignored
@@ -106,7 +106,8 @@ repo.test.allow = org.junit*,com.google:guava,com.google:gson
 **Format Rules**:
 - **Allow rule**: `repo.{repositoryId}.allow = pattern1,pattern2,...`
   - GroupId exact match: `org.graylog` (matches only exact groupId `org.graylog`)
-  - GroupId wildcard: `org.graylog*` (matches `org.graylog` and all sub-packages like `org.graylog.plugin`)
+  - GroupId sub-groups: `org.graylog.*` (matches sub-groups like `org.graylog.plugin`, but not `org.graylog` itself)
+  - GroupId and sub-groups: `org.graylog,org.graylog.*` (recommended over `org.graylog*`, see the caution below)
   - Coordinate pattern: `com.company:*` (matches all artifacts in groupId `com.company`)
   - Coordinate pattern: `com.test:lib-*` (matches artifacts starting with "lib-" in groupId `com.test`)
   - Coordinate exact match: `com.google:guava` (matches only the specific artifact)
@@ -115,6 +116,14 @@ repo.test.allow = org.junit*,com.google:guava,com.google:gson
 - Whitespace around keys, values, and commas is automatically trimmed
 - Comments start with `#`
 - Empty lines are ignored
+- Each key may appear **only once**. List all patterns for a rule on one line, separated by commas
+- Patterns may only contain letters, digits, `.`, `_`, `-` and `*`, with at most one `:` between
+  groupId and artifactId. Versions (`g:a:1.0`), `?`, inner whitespace and `%regex[...]` are invalid
+
+**Invalid configuration blocks the repository**: if a key appears more than once, or a pattern is
+invalid, the filter logs a warning and blocks **all** artifacts from that repository until the file is
+fixed. A rule is never silently ignored. A blank value (`repo.central.deny =`) is skipped with a
+warning: a blank `.deny` blocks nothing, a blank `.allow` denies everything.
 
 ### Repository IDs and Mirrors
 
@@ -138,10 +147,10 @@ rules must be keyed to `nexus`, not `central`:
 
 ```properties
 # Correct: the resolver fetches everything through the "nexus" mirror
-repo.nexus.allow = org.graylog*,org.apache.maven*
+repo.nexus.allow = org.graylog,org.graylog.*,org.apache.maven,org.apache.maven.*
 
 # Has no effect when the above mirror is active — "central" is never contacted directly
-repo.central.allow = org.graylog*
+repo.central.allow = org.graylog,org.graylog.*
 ```
 
 This is intentional and fail-secure: a mirror is a distinct download source and must be allowed
@@ -165,8 +174,13 @@ The filter works in this order:
 
 > **Note:** Matching uses the `groupId` and `artifactId` only. The artifact **version is not considered**,
 > so rules cannot allow or deny specific versions of an artifact (e.g. blocking a known-bad version while
-> allowing others). A pattern like `*-SNAPSHOT` matches a *groupId* ending in `-SNAPSHOT` — which never
-> exists — and therefore blocks nothing.
+> allowing others). A pattern like `*-SNAPSHOT` matches a *groupId* ending in `-SNAPSHOT` — which is not
+> a real-world convention — and therefore effectively blocks nothing.
+
+> **Note:** Deny patterns use the same matching as allow patterns, so a deny pattern without a wildcard
+> is an **exact** match. `repo.central.deny = com.google.guava` does not block
+> `com.google.guava.internal:*`. Use `com.google.guava,com.google.guava.*` to deny a group and its
+> sub-groups. This matters most with a catch-all `allow = *`, where deny rules are the only restriction.
 
 **Pattern Matching**:
 
@@ -184,6 +198,11 @@ Patterns support both groupId-only and full coordinate (groupId:artifactId) patt
   - Does NOT match: `com.google:*` (requires dot after google)
   - `com.google*` matches: `com.google:*`, `com.googlecode:*`, `com.google.foo:*`
   - `*` matches: everything
+
+> **Caution — wildcards are greedy across dots:** `.` is not a separator, so `*` matches any characters
+> at any depth. A bare-prefix pattern like `org.graylog*` also matches adjacent names such as
+> `org.graylognasty` (a potential typosquat), and `com.*` allows the whole `com` namespace. In allow
+> rules, prefer exact groupIds plus dot-anchored sub-groups: `org.graylog,org.graylog.*`.
 
 #### Coordinate Patterns (groupId:artifactId)
 
@@ -212,8 +231,8 @@ Patterns support both groupId-only and full coordinate (groupId:artifactId) patt
 Create `~/.m2/repository/.remoteRepositoryFilters/strict.properties`:
 
 ```properties
-# Only allow these groupIds from Maven Central (with wildcards to include sub-packages)
-repo.central.allow = org.graylog*,org.apache.maven*,org.apache.commons*
+# Only allow these groupIds and their sub-groups from Maven Central
+repo.central.allow = org.graylog,org.graylog.*,org.apache.maven,org.apache.maven.*,org.apache.commons
 ```
 
 Run Maven (filter is enabled by default):
@@ -222,7 +241,7 @@ Run Maven (filter is enabled by default):
 mvn clean compile
 ```
 
-Only artifacts from the allowed groupIds and their sub-packages will be fetched from Maven Central. Everything else is denied by default.
+Only artifacts from the allowed groupIds (and, for `org.graylog` and `org.apache.maven`, their sub-groups) will be fetched from Maven Central. Everything else is denied by default.
 
 **For project-specific configuration**, simply create `.mvn/remoteRepositoryFilters/strict.properties` in your project root with the same content. It is discovered automatically — no `.mvn/maven.config` or `basedir` property is required. (See the "Configuration File" section above for the full lookup order.)
 
@@ -231,11 +250,11 @@ Only artifacts from the allowed groupIds and their sub-packages will be fetched 
 Allow broad groupIds but deny specific sub-packages:
 
 ```properties
-# Shibboleth repository - allow main packages (with wildcards)
-repo.shibboleth.allow = org.opensaml*,net.shibboleth*
+# Shibboleth repository - allow main groups and their sub-groups
+repo.shibboleth.allow = org.opensaml,org.opensaml.*,net.shibboleth,net.shibboleth.*
 
-# But deny internal packages
-repo.shibboleth.deny = org.opensaml.internal*,net.shibboleth.internal*
+# But deny internal groups and their sub-groups
+repo.shibboleth.deny = org.opensaml.internal,org.opensaml.internal.*,net.shibboleth.internal,net.shibboleth.internal.*
 ```
 
 This allows `org.opensaml:opensaml-core` and `org.opensaml.core:*` but denies `org.opensaml.internal:something`.
@@ -246,14 +265,14 @@ Configure multiple repositories in a single file:
 
 ```properties
 # Shibboleth repository
-repo.shibboleth.allow = org.opensaml*,net.shibboleth*
+repo.shibboleth.allow = org.opensaml,org.opensaml.*,net.shibboleth,net.shibboleth.*
 repo.shibboleth.deny = *.internal*
 
 # Maven Central
-repo.central.allow = org.graylog*,org.apache.maven*
+repo.central.allow = org.graylog,org.graylog.*,org.apache.maven,org.apache.maven.*
 
 # Company internal repository
-repo.company-nexus.allow = com.company*,com.company.internal*
+repo.company-nexus.allow = com.company,com.company.*
 ```
 
 ### Example 4: Glob Pattern Wildcards
@@ -262,19 +281,20 @@ Use wildcards for flexible matching:
 
 ```properties
 # Allow all Google libraries
-repo.central.allow = com.google*
+repo.central.allow = com.google,com.google.*
 
 # But deny test utilities
 repo.central.deny = com.google.*.test*
 
 # Allow anything from company, deny an internal sub-group
-repo.company.allow = com.mycompany*
-repo.company.deny = com.mycompany.internal*
+repo.company.allow = com.mycompany,com.mycompany.*
+repo.company.deny = com.mycompany.internal,com.mycompany.internal.*
 ```
 
 ### Example 5: Coordinate-Based Filtering
 
-Restrict specific artifacts using full coordinates:
+Restrict specific artifacts using full coordinates. Each snippet below is a separate alternative —
+a key may appear only once per file:
 
 ```properties
 # Allow only specific Google artifacts (exact match)
@@ -291,7 +311,7 @@ repo.central.allow = org.apache.commons:*
 repo.central.deny = org.apache.commons:commons-io
 
 # Mix groupId and coordinate patterns
-repo.central.allow = org.graylog*,com.opensaml:*,com.google:guava
+repo.central.allow = org.graylog,org.graylog.*,com.opensaml:*,com.google:guava
 ```
 
 ### Example 6: Custom Config Directory
@@ -324,6 +344,23 @@ mvn clean install \
 ```
 
 This disables the filter entirely for this build.
+
+## Security Model
+
+The filter restricts **which coordinates** (`groupId:artifactId`) may be fetched from **which
+repository ID**. Keep its limits in mind:
+
+- **No version or classifier matching**: once a `groupId:artifactId` is allowed, every version is allowed.
+- **Repository IDs, not URLs**: rules are keyed by repository ID. The filter does not check which server
+  the ID points to (see [Repository IDs and Mirrors](#repository-ids-and-mirrors)).
+- **No integrity checks**: the filter does not verify checksums or signatures. Run Maven with
+  `--strict-checksums` (`-C`) and use your usual signature/dependency policies alongside it.
+- **The project controls its own configuration**: without an explicit `basedir`, a project-local
+  `.mvn/remoteRepositoryFilters/strict.properties` takes precedence over the global configuration, and
+  `.mvn/maven.config` can set `basedir` or disable the filter. Review changes to `.mvn/` like code.
+
+Within those limits the filter fails secure: missing configuration, unknown repository IDs, unreadable
+or oversized files, duplicate keys and invalid patterns all block artifacts rather than allow them.
 
 ## Architecture
 
@@ -371,8 +408,8 @@ Look for log messages from `StrictRemoteRepositoryFilterSource` and `StrictRemot
 
 1. **The filter is enabled by default** - when you register the extension in `.mvn/extensions.xml`, it activates automatically
 2. **Fail-secure behavior** - blocks all artifacts when no configuration exists
-3. **Not for security** - use `maven-enforcer-plugin` for dependency policies
-4. **Optimization tool** - designed to reduce unnecessary 404 requests and improve privacy
+3. **Complements dependency policies** - the filter limits which coordinates may be downloaded from which repository; it does not replace version or dependency policies such as `maven-enforcer-plugin` (see [Security Model](#security-model))
+4. **Reduces requests and leaks** - artifacts are only requested from repositories allowed to serve them, avoiding unnecessary 404 requests and leaking coordinates to other repositories
 
 ## References
 
