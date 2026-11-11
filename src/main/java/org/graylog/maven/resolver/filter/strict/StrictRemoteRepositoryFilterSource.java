@@ -89,9 +89,9 @@ public class StrictRemoteRepositoryFilterSource implements RemoteRepositoryFilte
         final StrictFilterConfiguration config = loadConfiguration(session);
 
         if (config.isEmpty()) {
-            logger.warn("No configuration found for strict filter at: {} - BLOCKING ALL ARTIFACTS (fail-secure mode)",
+            logger.warn("No usable strict filter rules found at: {} - BLOCKING ALL ARTIFACTS (fail-secure mode)",
                     config.getBasedir());
-            logger.warn("Create strict.properties file with allow rules to permit artifacts");
+            logger.warn("Create a strict.properties file with allow rules, or fix the rule warnings above");
         } else {
             logger.debug("Strict filter is active with configuration from: {}", config.getBasedir());
         }

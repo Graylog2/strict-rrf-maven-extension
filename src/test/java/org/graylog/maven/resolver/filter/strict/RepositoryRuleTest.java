@@ -359,4 +359,45 @@ class RepositoryRuleTest {
         assertFalse(rule.isArtifactAllowed(artifact),
                 "Should deny all when both allow and deny patterns are empty");
     }
+
+    @Test
+    void testEmptyGroupIdDenied() {
+        final RepositoryRule rule = new RepositoryRule(Set.of("*"), Set.of());
+
+        final Artifact artifact = new DefaultArtifact("", "server", "jar", "1.0");
+
+        assertFalse(rule.isArtifactAllowed(artifact),
+                "Should deny an artifact without groupId even under a catch-all allow");
+    }
+
+    @Test
+    void testEmptyArtifactIdDenied() {
+        final RepositoryRule rule = new RepositoryRule(Set.of("*"), Set.of("org.graylog:server"));
+
+        final Artifact artifact = new DefaultArtifact("org.graylog", "", "jar", "1.0");
+
+        assertFalse(rule.isArtifactAllowed(artifact),
+                "Should deny an artifact without artifactId instead of skipping coordinate deny patterns");
+    }
+
+    @Test
+    void testMetadataWithoutGroupIdNotMatched() {
+        final RepositoryRule rule = new RepositoryRule(Set.of("*"), Set.of());
+
+        final Metadata metadata = new DefaultMetadata("maven-metadata.xml", Metadata.Nature.RELEASE_OR_SNAPSHOT);
+
+        assertFalse(rule.isMetadataAllowed(metadata),
+                "Repository-level metadata is decided by the caller, never matched by the rule");
+    }
+
+    @Test
+    void testExactDenyDoesNotCoverSubGroups() {
+        // Documents known behavior: deny patterns are exact unless they contain a wildcard
+        final RepositoryRule rule = new RepositoryRule(Set.of("*"), Set.of("com.google.guava"));
+
+        assertFalse(rule.isArtifactAllowed(new DefaultArtifact("com.google.guava:guava:31.0")),
+                "Should deny the exact groupId");
+        assertTrue(rule.isArtifactAllowed(new DefaultArtifact("com.google.guava.internal:thing:1.0")),
+                "Exact deny does not cover sub-groups; use 'com.google.guava.*' for that");
+    }
 }
