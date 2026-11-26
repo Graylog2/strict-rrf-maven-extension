@@ -1,5 +1,6 @@
 package org.graylog.maven.resolver.filter.strict;
 
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.aether.artifact.Artifact;
 import org.eclipse.aether.metadata.Metadata;
 import org.slf4j.Logger;
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -41,7 +43,10 @@ import java.util.stream.Collectors;
  *
  * <p>Pattern matching rules:
  * <ul>
- * <li>GroupId-only: {@code org.graylog} matches {@code org.graylog:*} and {@code org.graylog.plugin:*}</li>
+ * <li>GroupId-only (exact): {@code org.graylog} matches only {@code org.graylog:*}, not
+ *     sub-groups such as {@code org.graylog.plugin:*}</li>
+ * <li>Dot-anchored groupId: {@code org.graylog.*} matches only sub-groups such as
+ *     {@code org.graylog.plugin:*}; combine as {@code org.graylog,org.graylog.*} to match both</li>
  * <li>Wildcard groupId: {@code com.google*} matches {@code com.google:*}, {@code com.googlecode:*}</li>
  * <li>Coordinate with wildcard: {@code com.opensaml:*} matches all artifacts in {@code com.opensaml}</li>
  * <li>Coordinate with pattern: {@code com.company:test-*} matches {@code com.company:test-utils}, etc.</li>
@@ -56,6 +61,17 @@ import java.util.stream.Collectors;
  * {@code org.graylog*} also matches adjacent names like {@code org.graylognasty} (a potential
  * typosquat), and {@code com.*} allows the entire {@code com} namespace. Prefer exact patterns
  * ({@code org.graylog}) or dot-anchored prefixes ({@code org.graylog.*}) in allow rules.
+ *
+ * <p><strong>Fail-secure validation:</strong> a repository is blocked entirely (as if it had no
+ * configuration) when any of its rules is ambiguous or invalid, so that a rule can never be
+ * silently ignored:
+ * <ul>
+ * <li>the same key appears more than once (plain {@link Properties} would keep only the last line)</li>
+ * <li>a pattern contains characters other than letters, digits, {@code .}, {@code _}, {@code -} and
+ *     {@code *}, or more than one {@code :} (e.g. a version such as {@code g:a:1.0}, {@code ?},
+ *     whitespace, or {@code %regex[...]})</li>
+ * <li>a pattern has an empty groupId or artifactId part (e.g. {@code g:} or {@code :a})</li>
+ * </ul>
  */
 public class StrictFilterConfiguration {
 
@@ -65,6 +81,9 @@ public class StrictFilterConfiguration {
     private static final String ALLOW_SUFFIX = ".allow";
     private static final String DENY_SUFFIX = ".deny";
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024;
+    // Maven's coordinate characters plus '*', and at most one ':' between groupId and artifactId
+    private static final Pattern VALID_RULE_PATTERN =
+            Pattern.compile("[A-Za-z0-9_.*-]+(?::[A-Za-z0-9_.*-]+)?");
 
     private final Path basedir;
     private final Map<String, RepositoryRule> repositoryRules;
@@ -132,7 +151,7 @@ public class StrictFilterConfiguration {
             return Map.of();
         }
 
-        final Properties properties = new Properties();
+        final DuplicateTrackingProperties properties = new DuplicateTrackingProperties();
         try (InputStream input = Files.newInputStream(file)) {
             properties.load(input);
         } catch (IOException e) {
@@ -140,42 +159,28 @@ public class StrictFilterConfiguration {
             return Map.of();
         }
 
-        // First collect all repository IDs
         final Map<String, Set<String>> allowPatterns = new HashMap<>();
         final Map<String, Set<String>> denyPatterns = new HashMap<>();
+        // Repositories with an ambiguous or invalid rule get no rule at all, which blocks them (fail-secure)
+        final Set<String> blockedRepoIds = new HashSet<>();
 
         for (final String key : properties.stringPropertyNames()) {
-            // Check if key starts with "repo."
-            if (!key.startsWith(REPO_PREFIX)) {
-                logger.warn("Skipping invalid property '{}' in {}: key must start with 'repo.'", key, file);
+            final RuleKey ruleKey = parseRuleKey(key, file);
+            if (ruleKey == null) {
                 continue;
             }
 
-            final String remainder = key.substring(REPO_PREFIX.length());
-
-            // Extract repository ID and rule type (.allow or .deny)
-            final String repoId;
-            final boolean isAllow;
-
-            if (remainder.endsWith(ALLOW_SUFFIX)) {
-                repoId = remainder.substring(0, remainder.length() - ALLOW_SUFFIX.length());
-                isAllow = true;
-            } else if (remainder.endsWith(DENY_SUFFIX)) {
-                repoId = remainder.substring(0, remainder.length() - DENY_SUFFIX.length());
-                isAllow = false;
-            } else {
-                logger.warn("Skipping invalid property '{}' in {}: must end with '.allow' or '.deny'", key, file);
-                continue;
-            }
-
-            if (repoId.isEmpty()) {
-                logger.warn("Skipping invalid property '{}' in {}: empty repository ID", key, file);
+            if (properties.isDuplicate(key)) {
+                logger.warn("Duplicate property '{}' in {}: only one line per key is allowed. Blocking all"
+                        + " artifacts from repository '{}' until the duplicate is removed.", key, file, ruleKey.repoId());
+                blockedRepoIds.add(ruleKey.repoId());
                 continue;
             }
 
             final String value = properties.getProperty(key);
-            if (value == null || value.isBlank()) {
-                logger.debug("Empty value for property '{}', skipping", key);
+            if (StringUtils.isBlank(value)) {
+                logger.warn("Empty value for property '{}' in {}: skipping. A blank '.deny' rule blocks"
+                        + " nothing; a blank '.allow' rule denies everything for that repository.", key, file);
                 continue;
             }
 
@@ -184,22 +189,75 @@ public class StrictFilterConfiguration {
                     .filter(s -> !s.isEmpty())
                     .collect(Collectors.toSet());
 
+            final List<String> invalidPatterns = patterns.stream()
+                    .filter(p -> !VALID_RULE_PATTERN.matcher(p).matches())
+                    .sorted()
+                    .toList();
+            if (!invalidPatterns.isEmpty()) {
+                logger.warn("Invalid pattern(s) {} for property '{}' in {}: patterns may only contain letters, digits,"
+                                + " '.', '_', '-' and '*', with at most one ':' between groupId and artifactId."
+                                + " Blocking all artifacts from repository '{}' until fixed.",
+                        invalidPatterns, key, file, ruleKey.repoId());
+                blockedRepoIds.add(ruleKey.repoId());
+                continue;
+            }
+
             if (!patterns.isEmpty()) {
-                if (isAllow) {
-                    allowPatterns.computeIfAbsent(repoId, k -> new HashSet<>()).addAll(patterns);
-                    logger.debug("Loaded {} allow patterns for repository '{}': {}", patterns.size(), repoId, patterns);
-                } else {
-                    denyPatterns.computeIfAbsent(repoId, k -> new HashSet<>()).addAll(patterns);
-                    logger.debug("Loaded {} deny patterns for repository '{}': {}", patterns.size(), repoId, patterns);
-                }
+                final Map<String, Set<String>> target = ruleKey.allow() ? allowPatterns : denyPatterns;
+                target.computeIfAbsent(ruleKey.repoId(), k -> new HashSet<>()).addAll(patterns);
+                logger.debug("Loaded {} {} patterns for repository '{}': {}",
+                        patterns.size(), ruleKey.allow() ? "allow" : "deny", ruleKey.repoId(), patterns);
             }
         }
 
-        // Create RepositoryRule for each repository
+        return buildRules(allowPatterns, denyPatterns, blockedRepoIds, file);
+    }
+
+    /**
+     * Parses a property key of the form {@code repo.<repositoryId>.allow} or {@code repo.<repositoryId>.deny}.
+     *
+     * @param key  the property key
+     * @param file the configuration file, for log messages
+     * @return the parsed key, or {@code null} if the key is invalid (a warning is logged)
+     */
+    private static RuleKey parseRuleKey(String key, Path file) {
+        if (!key.startsWith(REPO_PREFIX)) {
+            logger.warn("Skipping invalid property '{}' in {}: key must start with 'repo.'", key, file);
+            return null;
+        }
+
+        final String remainder = key.substring(REPO_PREFIX.length());
+        final String repoId;
+        final boolean isAllow;
+
+        if (remainder.endsWith(ALLOW_SUFFIX)) {
+            repoId = remainder.substring(0, remainder.length() - ALLOW_SUFFIX.length());
+            isAllow = true;
+        } else if (remainder.endsWith(DENY_SUFFIX)) {
+            repoId = remainder.substring(0, remainder.length() - DENY_SUFFIX.length());
+            isAllow = false;
+        } else {
+            logger.warn("Skipping invalid property '{}' in {}: must end with '.allow' or '.deny'", key, file);
+            return null;
+        }
+
+        if (repoId.isEmpty()) {
+            logger.warn("Skipping invalid property '{}' in {}: empty repository ID", key, file);
+            return null;
+        }
+
+        return new RuleKey(repoId, isAllow);
+    }
+
+    private static Map<String, RepositoryRule> buildRules(Map<String, Set<String>> allowPatterns,
+                                                          Map<String, Set<String>> denyPatterns,
+                                                          Set<String> blockedRepoIds,
+                                                          Path file) {
         final Map<String, RepositoryRule> repositoryRules = new HashMap<>();
         final Set<String> allRepoIds = new HashSet<>();
         allRepoIds.addAll(allowPatterns.keySet());
         allRepoIds.addAll(denyPatterns.keySet());
+        allRepoIds.removeAll(blockedRepoIds);
 
         for (final String repoId : allRepoIds) {
             final Set<String> allow = allowPatterns.getOrDefault(repoId, Set.of());
@@ -313,13 +371,37 @@ public class StrictFilterConfiguration {
             return false;
         }
 
-        final String groupId = metadata.getGroupId();
-        if (groupId == null || groupId.isEmpty()) {
-            // Repository-level metadata (no groupId) has no coordinate to match; allow it only
-            // because the repository is explicitly configured (checked above).
-            return true;
+        // Repository-level metadata (no groupId) has no coordinate to match; allow it only
+        // because the repository is explicitly configured (checked above).
+        return StringUtils.isEmpty(metadata.getGroupId()) || rule.isMetadataAllowed(metadata);
+    }
+
+    /**
+     * A parsed {@code repo.<repositoryId>.allow|deny} property key.
+     */
+    private record RuleKey(String repoId, boolean allow) {
+    }
+
+    /**
+     * {@link Properties} that remembers keys defined more than once. Plain {@code Properties}
+     * silently keeps only the last value, which would drop an earlier rule unnoticed.
+     */
+    private static final class DuplicateTrackingProperties extends Properties {
+        private static final long serialVersionUID = 1L;
+
+        private final Set<String> duplicateKeys = new HashSet<>();
+
+        @Override
+        public Object put(Object key, Object value) {
+            // Properties.load() stores every parsed line through put()
+            if (containsKey(key)) {
+                duplicateKeys.add(String.valueOf(key));
+            }
+            return super.put(key, value);
         }
 
-        return rule.isMetadataAllowed(metadata);
+        boolean isDuplicate(String key) {
+            return duplicateKeys.contains(key);
+        }
     }
 }
